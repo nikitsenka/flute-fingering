@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- Same 67, set in a ring. -->
+  <circle cx="96" cy="96" r="82" fill="#fdf6e9" stroke="#4a3f35" stroke-width="8"/>
+  <g transform="translate(-3 4) translate(96 96) scale(0.78) translate(-96 -96)">
+
+  <g fill="none" stroke="#4a3f35" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+    <!-- the 6's tail, which is also the note's stem -->
+    <path d="M33 122 L33 76 C33 52, 58 44, 78 58"/>
+    <!-- the 7 -->
+    <path d="M108 54 H166 L122 142"/>
+  </g>
+
+  <!-- the bowl of the 6, drawn as a notehead -->
+  <ellipse cx="58" cy="118" rx="26" ry="19" fill="#fdf6e9" stroke="#4a3f35" stroke-width="15"
+           transform="rotate(-20 58 118)"/>
+  </g>
+</svg>

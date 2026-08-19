@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- A: a fingering pattern reduced to dots -- filled = down, open = up.
+       True of a flute, a recorder, a sax, a set of valves. -->
+  <rect width="192" height="192" rx="42" fill="#ddd6f0"/>
+
+  <g stroke="#4a3f35" stroke-width="6.5">
+    <circle cx="62" cy="48" r="17" fill="#c32679"/>
+    <circle cx="130" cy="48" r="17" fill="#fffaf1"/>
+    <circle cx="62" cy="96" r="17" fill="#c32679"/>
+    <circle cx="130" cy="96" r="17" fill="#c32679"/>
+    <circle cx="62" cy="144" r="17" fill="#fffaf1"/>
+    <circle cx="130" cy="144" r="17" fill="#c32679"/>
+  </g>
+</svg>

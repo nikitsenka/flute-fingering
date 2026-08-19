@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>flute trainer</title>
+<link rel="icon" href="assets/icon-7.svg" type="image/svg+xml">
+<link rel="icon" href="assets/icon-7-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/icon-7-180.png">
+<link rel="stylesheet" href="theme.css">
+<script src="prefs.js"></script>
+<script src="theme.js"></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--cream);
+    background-image:radial-gradient(var(--dot) 1px, transparent 1px);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:var(--font-ui);
+    padding:16px 14px 40px;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{
+    text-align:center;
+    font-size:clamp(21px,4.6vw,32px);
+    margin:4px 0 2px;
+  }
+  .sub{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:14px;
+    margin:0 0 14px;
+  }
+  .bar{
+    display:flex;
+    gap:9px;
+    justify-content:center;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-bottom:14px;
+  }
+  .btn{
+    font-family:inherit;
+    font-size:15px;
+    cursor:pointer;
+    border:var(--bw) solid var(--edge);
+    border-radius:var(--r-md);
+    background:var(--sky);
+    color:var(--ink);
+    padding:7px 15px;
+    box-shadow:2px 3px 0 var(--shadow);
+  }
+  .btn:active{transform:translate(2px,3px);box-shadow:0 0 0 rgba(0,0,0,0)}
+  .btn[aria-pressed="true"]{background:var(--pressed-bg);color:var(--pressed-fg)}
+  .btn.go{background:var(--accent);color:var(--accent-on);min-width:112px}
+  .tempo{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-size:14px;
+    color:var(--ink-soft);
+    border:var(--bw) solid var(--edge);
+    border-radius:var(--r-md);
+    background:var(--card);
+    padding:5px 13px;
+    box-shadow:2px 3px 0 var(--shadow);
+  }
+  .tempo input{width:104px;accent-color:var(--magenta)}
+  /* the tempo and bar readouts are numbers, so they follow --font-mono */
+  .tempo b{color:var(--ink);font-family:var(--font-mono);font-size:15px;min-width:54px;text-align:right}
+  .tempo.wide{width:min(100%,520px)}
+  .tempo.wide input{flex:1;width:auto}
+  .tempo select{
+    font-family:inherit;
+    font-size:15px;
+    color:var(--ink);
+    background:transparent;
+    border:0;
+    cursor:pointer;
+  }
+
+  .stage{
+    background:var(--card);
+    border:var(--bw) solid var(--edge);
+    border-radius:var(--r-lg);
+    box-shadow:4px 5px 0 var(--shadow-soft);
+    padding:8px;
+    overflow:hidden;
+  }
+  canvas{display:block;width:100%;height:auto;border-radius:var(--r-md)}
+
+  .panel{
+    display:flex;
+    gap:14px;
+    margin-top:14px;
+    align-items:stretch;
+    flex-wrap:wrap;
+  }
+  .card{
+    background:var(--card);
+    border:var(--bw) solid var(--edge);
+    border-radius:var(--r-lg);
+    box-shadow:4px 5px 0 var(--shadow-soft);
+    padding:12px 14px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+  }
+  .card h2{
+    font-size:13px;
+    font-weight:normal;
+    color:var(--ink-soft);
+    margin:0;
+    text-align:center;
+  }
+  .card.staff{background:var(--pink);flex:0 1 290px}
+  .card.grip{background:var(--mint);flex:1 1 440px}
+  .card svg{display:block}
+  .card.staff svg{width:100%;max-width:260px;height:auto}
+  .card.grip svg{width:100%;max-width:680px;height:auto}
+  /* dimmed while it is only a preview of the note that comes next */
+  .card.preview{opacity:.45}
+  .note{
+    font-size:14px;
+    color:var(--ink-soft);
+    text-align:center;
+    line-height:1.6;
+    margin:18px 0 0;
+  }
+
+  /* the melody picker shown after a MusicXML file is opened */
+  dialog{
+    border:var(--bw) solid var(--edge);
+    border-radius:var(--r-lg);
+    background:var(--card);
+    box-shadow:4px 5px 0 var(--shadow-soft);
+    color:var(--ink);
+    font-family:inherit;
+    padding:18px;
+    width:min(94vw,620px);
+    max-height:86vh;
+  }
+  dialog::backdrop{background:var(--backdrop)}
+  dialog h2{margin:0 0 4px;font-size:19px;text-align:center}
+  dialog .hint{
+    margin:0 0 12px;
+    font-size:13px;
+    color:var(--ink-soft);
+    text-align:center;
+  }
+  .lines{
+    display:flex;
+    flex-direction:column;
+    gap:7px;
+    max-height:40vh;
+    overflow-y:auto;
+    margin-bottom:12px;
+  }
+  .line{
+    display:flex;
+    gap:9px;
+    align-items:flex-start;
+    border:var(--bw-thin) solid var(--edge);
+    border-radius:var(--r-md);
+    background:var(--cream);
+    padding:8px 11px;
+    cursor:pointer;
+    text-align:left;
+  }
+  .line:has(input:checked){background:var(--mint)}
+  .line input{margin-top:3px;accent-color:var(--magenta)}
+  .line b{font-size:15px;font-weight:normal;display:block}
+  .line small{color:var(--ink-soft);font-size:12px;line-height:1.5}
+  .line .best{color:var(--magenta)}
+  dialog .row{
+    display:flex;
+    gap:9px;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-bottom:10px;
+    font-size:14px;
+    color:var(--ink-soft);
+  }
+  dialog input[type=text], dialog select{
+    font-family:inherit;
+    font-size:15px;
+    color:var(--ink);
+    border:var(--bw-thin) solid var(--edge);
+    border-radius:var(--r-sm);
+    background:var(--card);
+    padding:5px 9px;
+  }
+  dialog input[type=text]{flex:1;min-width:150px}
+  dialog .warn{
+    font-size:13px;
+    color:var(--ink);
+    background:var(--lemon);
+    border:var(--bw-thin) solid var(--edge);
+    border-radius:var(--r-sm);
+    padding:8px 11px;
+    margin-bottom:10px;
+    line-height:1.5;
+  }
+  dialog .buttons{display:flex;gap:9px;justify-content:flex-end}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1 id="title">flute trainer</h1>
+  <p class="sub" data-i18n="game.sub">Notes fall from the top. The lane they land on is the one to play.</p>
+
+  <div class="bar">
+    <button class="btn go" id="play" type="button">▶ Play</button>
+    <button class="btn" id="restart" type="button" data-i18n="game.restart">↺ Restart</button>
+    <label class="tempo"><span data-i18n="game.piece">piece</span> <select id="song"></select></label>
+    <button class="btn" id="add" type="button" data-i18n="game.add" data-i18n-title="game.add.title" title="Load MusicXML (.mxl)">＋ From file</button>
+    <input type="file" id="file" accept=".mxl,.musicxml,.xml" hidden>
+    <label class="tempo"><span data-i18n="game.tempo">tempo</span> <input id="bpm" type="range" min="30" max="120" step="2" value="60"><b id="bpmVal">60</b></label>
+    <button class="btn" id="sound" type="button" aria-pressed="false" data-i18n="game.sound">🔊 Sound</button>
+    <span id="topbar"></span>
+  </div>
+
+  <div class="bar">
+    <label class="tempo wide"><span data-i18n="game.bar">bar</span> <input id="seek" type="range" min="0" max="100" step="0.5" value="0"><b id="seekVal">14</b></label>
+  </div>
+
+  <div class="stage"><canvas id="lanes"></canvas></div>
+
+  <div class="panel">
+    <div class="card staff">
+      <h2 data-i18n="game.staffCard">on the staff</h2>
+      <div id="staff"></div>
+    </div>
+    <div class="card grip">
+      <h2 id="gripTitle"></h2>
+      <svg id="grip" role="img" aria-label=""></svg>
+    </div>
+  </div>
+
+  <dialog id="pick">
+    <h2 data-i18n="import.which">Which line are we playing?</h2>
+    <p class="hint" data-i18n="import.hint">There are several parts in the file. Pick the main melody.</p>
+    <div class="lines" id="lines"></div>
+    <div class="row">
+      <label><span data-i18n="import.name">name</span> <input type="text" id="newTitle" maxlength="40"></label>
+      <label><span data-i18n="import.octave">octave</span>
+        <select id="shift">
+          <option value="-2">−2</option>
+          <option value="-1">−1</option>
+          <option value="0" selected data-i18n="import.asis">as is</option>
+          <option value="1">+1</option>
+          <option value="2">+2</option>
+        </select>
+      </label>
+    </div>
+    <div class="warn" id="warn" hidden></div>
+    <div class="buttons">
+      <button class="btn" id="cancel" type="button" data-i18n="import.cancel">Cancel</button>
+      <button class="btn go" id="confirm" type="button" data-i18n="import.confirm">Add</button>
+    </div>
+  </dialog>
+
+  <p class="note">
+    <span data-i18n-html="game.footer">Space — start and pause, <b>R</b> — back to the beginning.</span><br>
+    <a href="notes.html" id="sheetLink" data-i18n="game.sheetLink">Every note with its fingering</a>
+  </p>
+
+</div>
+
+<script src="i18n.js"></script>
+<script src="lang/en.js"></script>
+<script src="lang/ru.js"></script>
+<script src="lang/de.js"></script>
+<script src="lang/es.js"></script>
+<script src="lang/fr.js"></script>
+<script src="lang/ja.js"></script>
+<script src="lang/zh.js"></script>
+<script src="notenames.js"></script>
+<script src="vendor/vexflow.js"></script>
+<script src="durations.js"></script>
+<script src="score.js"></script>
+<script src="songs.js"></script>
+<script src="instruments.js"></script>
+<script src="instruments/flute.js"></script>
+<script src="instruments/piano.js"></script>
+<script src="songimport.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var VF = window.VexFlow;
+
+  /* ---------- the instrument on screen ----------
+     The lanes, the timing and the piece itself are the same whatever is being
+     played; the panel under the lanes and the clef on the little stave are
+     not, so both are read from here and both are rebuilt when it changes. */
+  var inst = Instruments.current();
+  var chart = inst.chart;
+
+  /* ---------- the loaded piece ----------
+     Everything here is rebuilt by loadSong(); nothing about a particular
+     piece is baked into the rest of the file. */
+  var BEATS = DURATIONS.beats;
+  var song;               // the entry from SONGS that is playing
+  var TIMELINE = [];      // flat list of sounding notes, {t, dur, pitch, bar}
+  var TOTAL = 0;          // length in beats, rests included
+  var LANES = [];         // pitches used by the piece, lowest on the left
+  var LANE_OF = {};
+  var START = 0, END = 0;
+  var FIRST_BAR = 0, LAST_BAR = 0;
+
+  /* ---------- names ---------- */
+  /* notenames.js spells a pitch in whichever language is showing */
+  var parse = Note.parse;
+  var short = Note.of;
+
+  /* songimport.js tags what it throws with a translation key; anything else
+     that reaches the banner falls back to its own message */
+  function failed(code){
+    var e = new Error(code);
+    e.i18n = code;
+    return e;
+  }
+  function why(err){
+    return err && err.i18n ? I18n.t(err.i18n) : (err && err.message) || "?";
+  }
+
+  /* ---------- pitch -> midi -> frequency ---------- */
+  var midi = Note.midi;
+  function freq(pitch){
+    return 440 * Math.pow(2, (midi(pitch) - 69) / 12);
+  }
+
+  /* ---------- colours, one per lane ----------
+     A canvas cannot inherit from a stylesheet, so the whole palette is read
+     out of theme.css once and re-read whenever the theme changes. */
+  var TINT_NAMES = ["mint","pink","lav","lemon","peach","sky"];
+  var TINTS = [];
+  var C = {};
+
+  function readPalette(){
+    TINTS = TINT_NAMES.map(Theme.colourOf);
+    FONT = Theme.token("font-ui");
+    MONO = Theme.token("font-mono");
+    C = {
+      ink:       Theme.colourOf("ink"),
+      soft:      Theme.colourOf("ink-soft"),
+      magenta:   Theme.colourOf("magenta"),
+      onMagenta: Theme.colourOf("on-magenta"),
+      laneA:     Theme.colourOf("lane-a"),
+      laneB:     Theme.colourOf("lane-b"),
+      laneLine:  Theme.colourOf("lane-line"),
+      octLine:   Theme.colourOf("line"),
+      strip:     Theme.colourOf("card"),
+      bannerBg:  Theme.colourOf("banner-bg"),
+      tileEdge:  Theme.colourOf("tile-border")
+    };
+  }
+
+  function tint(i){ return TINTS[i % TINTS.length]; }
+
+  /* ---------- canvas ---------- */
+  var canvas = document.getElementById("lanes");
+  var cx = canvas.getContext("2d");
+  var CH = 400;                 // drawing height in css px
+  var HIT = 300;                // y of the "play now" line
+  var LEAD = 4;                 // beats visible above the line
+  var cw = 900;                 // set in fit()
+  var ppb = (HIT - 14) / LEAD;  // pixels per beat
+
+  function fit(){
+    var box = canvas.parentNode.getBoundingClientRect();
+    cw = Math.max(320, Math.floor(box.width) - 16);
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width  = Math.round(cw * dpr);
+    canvas.height = Math.round(CH * dpr);
+    canvas.style.height = CH + "px";
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  /* Set by readPalette, from the same tokens the rest of the page is typeset
+     with: FONT for the note names, MONO for the octave under each lane, which
+     a theme may want to set apart. */
+  var FONT = "", MONO = "";
+  /* Kept as a key rather than as finished text, so a banner already on screen
+     follows the reader into the new language. */
+  var banner = null;
+
+  function setBanner(key, params, n){
+    banner = key ? {key:key, params:params, n:n} : null;
+  }
+
+  function bannerText(){
+    if(!banner){ return ""; }
+    return banner.n === undefined
+      ? I18n.t(banner.key, banner.params)
+      : I18n.plural(banner.key, banner.n, banner.params);
+  }
+
+  function drawFrame(now, active){
+    var laneW = cw / LANES.length;
+    cx.clearRect(0, 0, cw, CH);
+
+    /* lanes */
+    LANES.forEach(function(p, i){
+      cx.fillStyle = i % 2 ? C.laneA : C.laneB;
+      cx.fillRect(i * laneW, 0, laneW, CH);
+    });
+    for(var i = 1; i < LANES.length; i++){
+      var octaveChange = parse(LANES[i]).oct !== parse(LANES[i - 1]).oct;
+      cx.strokeStyle = octaveChange ? C.octLine : C.laneLine;
+      cx.lineWidth = octaveChange ? 2 : 1;
+      cx.beginPath();
+      cx.moveTo(i * laneW, 0);
+      cx.lineTo(i * laneW, CH);
+      cx.stroke();
+    }
+
+    /* the note tiles */
+    TIMELINE.forEach(function(n){
+      var bottom = HIT + (now - n.t) * ppb;
+      var top = bottom - n.dur * ppb + 3;
+      if(bottom < -20 || top > CH + 20){ return; }
+      var lane = LANE_OF[n.pitch];
+      var x = lane * laneW + 3;
+      var w = laneW - 6;
+      var h = Math.max(9, bottom - top);
+      var isNow = n === active;
+
+      cx.beginPath();
+      var r = Math.min(7, w / 2, h / 2);
+      cx.moveTo(x + r, top);
+      cx.arcTo(x + w, top, x + w, top + h, r);
+      cx.arcTo(x + w, top + h, x, top + h, r);
+      cx.arcTo(x, top + h, x, top, r);
+      cx.arcTo(x, top, x + w, top, r);
+      cx.closePath();
+
+      cx.globalAlpha = top > HIT ? 0.28 : 1;
+      cx.fillStyle = isNow ? C.magenta : tint(lane);
+      cx.fill();
+      cx.lineWidth = isNow ? 3 : 2;
+      cx.strokeStyle = isNow ? C.magenta : C.tileEdge;
+      cx.stroke();
+
+      if(h > 17 && w > 22){
+        cx.fillStyle = isNow ? C.onMagenta : C.ink;
+        cx.font = (laneW < 58 ? "11px " : "13px ") + FONT;
+        cx.textAlign = "center";
+        cx.textBaseline = "middle";
+        cx.fillText(short(n.pitch), x + w / 2, top + h / 2);
+      }
+      cx.globalAlpha = 1;
+    });
+
+    /* the play-now line */
+    cx.strokeStyle = active ? C.magenta : C.soft;
+    cx.lineWidth = active ? 4 : 2.5;
+    cx.setLineDash(active ? [] : [7, 6]);
+    cx.beginPath();
+    cx.moveTo(0, HIT);
+    cx.lineTo(cw, HIT);
+    cx.stroke();
+    cx.setLineDash([]);
+
+    /* lane labels along the bottom, on their own opaque strip */
+    cx.fillStyle = C.strip;
+    cx.fillRect(0, CH - 40, cw, 40);
+    cx.strokeStyle = C.laneLine;
+    cx.lineWidth = 1;
+    cx.beginPath();
+    cx.moveTo(0, CH - 40);
+    cx.lineTo(cw, CH - 40);
+    cx.stroke();
+
+    cx.font = "12px " + FONT;
+    cx.textAlign = "center";
+    cx.textBaseline = "middle";
+    LANES.forEach(function(p, i){
+      var on = active && active.pitch === p;
+      var mid = i * laneW + laneW / 2;
+      cx.fillStyle = on ? C.magenta : C.soft;
+      cx.font = (laneW < 58 ? "11px " : "13px ") + FONT;
+      cx.fillText(short(p), mid, CH - 24);
+      cx.font = "10px " + MONO;
+      var sci = parse(p).oct;
+      cx.fillText(laneW >= 64 ? Note.octaveShort(sci) : sci, mid, CH - 10);
+    });
+
+    if(banner){
+      cx.fillStyle = C.bannerBg;
+      cx.fillRect(0, HIT / 2 - 34, cw, 68);
+      cx.fillStyle = C.magenta;
+      cx.font = "26px " + FONT;
+      cx.fillText(bannerText(), cw / 2, HIT / 2);
+    }
+  }
+
+  /* ---------- one-note stave, cached per pitch ----------
+     Cleared by loadSong: the key signature is per piece, and so is the clef
+     once the instrument has one to choose. */
+  var staffBox = document.getElementById("staff");
+  var staffCache = {};
+
+  function staffFor(pitch){
+    if(staffCache[pitch]){ return staffCache[pitch]; }
+    var clef = inst.clefFor(pitch);
+    var host = document.createElement("div");
+    var renderer = new VF.Renderer(host, VF.Renderer.Backends.SVG);
+    renderer.resize(230, 126);
+    var ctx = renderer.getContext();
+    var stave = new VF.Stave(2, 0, 224);
+    stave.addClef(clef).addKeySignature(song.score.key);
+    stave.setContext(ctx).draw();
+
+    var note = new VF.StaveNote({keys:[pitch], duration:"q", autoStem:true, clef:clef});
+    var voice = new VF.Voice({numBeats:1, beatValue:4});
+    voice.addTickables([note]);
+    VF.Accidental.applyAccidentals([voice], song.score.key);
+    new VF.Formatter().joinVoices([voice]).format([voice], 96);
+    voice.draw(ctx, stave);
+
+    var svg = ctx.svg;
+    svg.setAttribute("viewBox", "0 16 230 100");
+    svg.removeAttribute("width");
+    svg.removeAttribute("height");
+    staffCache[pitch] = svg;
+    return svg;
+  }
+
+  /* ---------- the readout under the lanes ---------- */
+  var gripSvg  = document.getElementById("grip");
+  var staffCard = document.querySelector(".card.staff");
+  var gripCard  = document.querySelector(".card.grip");
+  var shown     = null;
+  var lastPitch = null;
+
+  /* the panel's box is the instrument's: a flute chart on its side is tall and
+     narrow, a keyboard is wide and short */
+  function sizeGrip(){
+    gripSvg.setAttribute("viewBox", "0 0 " + chart.hWidth + " " + chart.hHeight);
+  }
+  sizeGrip();
+
+  function showNote(n, upcoming){
+    var key = (n ? n.pitch : "") + "|" + (upcoming ? upcoming.pitch : "");
+    if(key === shown){ return; }
+    shown = key;
+
+    /* between notes the panels preview what comes next, dimmed; past the
+       last note they hold on to it rather than going blank */
+    staffCard.classList.toggle("preview", !n);
+    gripCard.classList.toggle("preview", !n);
+
+    var pitch = n ? n.pitch : (upcoming ? upcoming.pitch : lastPitch);
+    if(!pitch){
+      staffBox.innerHTML = "";
+      gripSvg.innerHTML = "";
+      return;
+    }
+    lastPitch = pitch;
+
+    staffBox.innerHTML = "";
+    staffBox.appendChild(staffFor(pitch));
+    gripSvg.innerHTML = chart.horizontal(pitch);
+  }
+
+  /* ---------- sound ---------- */
+  var audio = null, soundOn = false, sounded = -1;
+
+  function beep(pitch, seconds){
+    if(!soundOn){ return; }
+    if(!audio){ audio = new (window.AudioContext || window.webkitAudioContext)(); }
+    var t0 = audio.currentTime;
+    var osc = audio.createOscillator();
+    var gain = audio.createGain();
+    osc.type = "triangle";
+    osc.frequency.value = freq(pitch);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.16, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + Math.max(0.16, seconds));
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t0);
+    osc.stop(t0 + Math.max(0.2, seconds) + 0.05);
+  }
+
+  /* ---------- transport ---------- */
+  var bpm = 60;
+  var playing = false;
+  var head = 0;                       // position in beats
+  var last = 0;
+
+  var playBtn = document.getElementById("play");
+
+  function currentNote(){
+    for(var i = 0; i < TIMELINE.length; i++){
+      var n = TIMELINE[i];
+      if(head >= n.t && head < n.t + n.dur){ return {now:n, next:TIMELINE[i+1] || null, i:i}; }
+      if(head < n.t){ return {now:null, next:n, i:i}; }
+    }
+    return {now:null, next:null, i:TIMELINE.length};
+  }
+
+  function tick(ts){
+    if(!playing){ return; }
+    var dt = (ts - last) / 1000;
+    last = ts;
+    head += dt * bpm / 60;
+
+    var cur = currentNote();
+    if(cur.now && cur.i !== sounded){
+      sounded = cur.i;
+      beep(cur.now.pitch, cur.now.dur * 60 / bpm);
+    }
+    drawFrame(head, cur.now);
+    showNote(cur.now, cur.next);
+    syncSeek();
+
+    if(head >= END){
+      stop();
+      setBanner("game.done");
+      drawFrame(head, null);
+      return;
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function start(){
+    if(playing){ return; }
+    setBanner(null);
+    if(head >= END){ head = START; sounded = -1; }
+    playing = true;
+    playBtn.textContent = I18n.t("game.pause");
+    last = performance.now();
+    if(audio && audio.state === "suspended"){ audio.resume(); }
+    requestAnimationFrame(tick);
+  }
+
+  function stop(){
+    playing = false;
+    playBtn.textContent = I18n.t("game.play");
+  }
+
+  function restart(){
+    head = START;
+    sounded = -1;
+    setBanner(null);
+    var cur = currentNote();
+    drawFrame(head, cur.now);
+    showNote(cur.now, cur.next);
+    syncSeek();
+  }
+
+  playBtn.addEventListener("click", function(){ playing ? stop() : start(); });
+  document.getElementById("restart").addEventListener("click", function(){
+    stop();
+    restart();
+  });
+  document.getElementById("sound").addEventListener("click", function(){
+    soundOn = !soundOn;
+    this.setAttribute("aria-pressed", String(soundOn));
+    if(soundOn && !audio){ audio = new (window.AudioContext || window.webkitAudioContext)(); }
+    if(soundOn && audio.state === "suspended"){ audio.resume(); }
+  });
+
+  /* seek, labelled by bar number */
+  var seek = document.getElementById("seek");
+  var seekVal = document.getElementById("seekVal");
+
+  function barAt(beats){
+    return Math.min(LAST_BAR, FIRST_BAR + Math.max(0, Math.floor(beats / 4)));
+  }
+
+  seek.addEventListener("input", function(){
+    head = +this.value;
+    sounded = -1;
+    setBanner(null);
+    var cur = currentNote();
+    drawFrame(head, cur.now);
+    showNote(cur.now, cur.next);
+    seekVal.textContent = barAt(head);
+  });
+
+  function syncSeek(){
+    seek.value = Math.max(START, Math.min(TOTAL, head));
+    seekVal.textContent = barAt(head);
+  }
+
+  var bpmInput = document.getElementById("bpm");
+  var bpmVal = document.getElementById("bpmVal");
+  bpmInput.addEventListener("input", function(){
+    bpm = +this.value;
+    bpmVal.textContent = bpm;
+  });
+
+  document.addEventListener("keydown", function(e){
+    if(e.code === "Space"){ e.preventDefault(); playing ? stop() : start(); }
+    if(e.key === "r" || e.key === "R" || e.key === "к" || e.key === "К"){
+      stop();
+      restart();
+    }
+  });
+
+  window.addEventListener("resize", function(){
+    fit();
+    var cur = currentNote();
+    drawFrame(head, cur.now);
+  });
+
+  /* ---------- loading a piece ---------- */
+  function loadSong(s){
+    song = s;
+
+    TIMELINE = [];
+    TOTAL = 0;
+    song.score.measures.forEach(function(m){
+      m.notes.forEach(function(n){
+        var d = BEATS[n[1]];
+        if(n[0] !== "R"){ TIMELINE.push({t:TOTAL, dur:d, pitch:n[0], bar:m.n}); }
+        TOTAL += d;
+      });
+    });
+    if(!TIMELINE.length){ return; }
+
+    /* one lane per pitch the piece actually uses, lowest on the left */
+    LANES = TIMELINE.map(function(n){ return n.pitch; })
+      .filter(function(p, i, all){ return all.indexOf(p) === i; })
+      .sort(function(a, b){ return midi(a) - midi(b); });
+    LANE_OF = {};
+    LANES.forEach(function(p, i){ LANE_OF[p] = i; });
+
+    START = TIMELINE[0].t - LEAD;   // first note enters at the top of the lane
+    END = TOTAL + 2;
+    FIRST_BAR = song.score.measures[0].n;
+    LAST_BAR = song.score.measures[song.score.measures.length - 1].n;
+
+    seek.min = START;
+    /* triplets make TOTAL land just shy of a whole beat; round off the dust */
+    seek.max = Math.round(TOTAL * 1000) / 1000;
+
+    staffCache = {};                // the key signature is per piece
+    shown = null;
+    lastPitch = null;
+
+    renderTitle();
+    document.getElementById("sheetLink").href =
+      "notes.html?song=" + encodeURIComponent(song.id);
+
+    restart();
+  }
+
+  function renderTitle(){
+    if(!song){ return; }
+    var text = I18n.t("app.game.title", {
+      song: songTitle(song),
+      instrument: Instruments.name(inst)
+    });
+    document.getElementById("title").textContent = text;
+    document.title = text;
+    var card = I18n.t(inst.copy.chartCardKey);
+    document.getElementById("gripTitle").textContent = card;
+    gripSvg.setAttribute("aria-label", card);
+  }
+
+  /* ---------- the picker ---------- */
+  var STORE_KEY = "flute.song";
+  var MINE_KEY = "flute.userSongs";      /* pieces loaded from a file */
+  var songSel = document.getElementById("song");
+
+  var remembered = Prefs.get;        /* shared with the other two pages */
+  var keep = Prefs.set;
+
+  /* songs.js holds the built-in pieces; anything imported is appended and
+     lives only in this browser */
+  var mine = remembered(MINE_KEY, []);
+  if(Object.prototype.toString.call(mine) !== "[object Array]"){ mine = []; }
+  mine.forEach(function(s){
+    if(s && s.id && s.score){ SONGS.push({id:s.id, title:s.title, score:s.score, mine:true}); }
+  });
+
+  function songById(id){
+    for(var i = 0; i < SONGS.length; i++){
+      if(SONGS[i].id === id){ return SONGS[i]; }
+    }
+    return null;
+  }
+
+  function refreshPicker(selected){
+    songSel.innerHTML = "";
+    SONGS.forEach(function(s){
+      var opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.mine ? songTitle(s) + " ●" : songTitle(s);
+      songSel.appendChild(opt);
+    });
+    songSel.value = selected;
+    dropBtn.hidden = !(songById(selected) || {}).mine;
+  }
+
+  songSel.addEventListener("change", function(){
+    var s = songById(this.value);
+    if(!s){ return; }
+    stop();
+    keep(STORE_KEY, s.id);
+    dropBtn.hidden = !s.mine;
+    loadSong(s);
+  });
+
+  /* ---------- loading a piece from a MusicXML file ---------- */
+  var fileInput = document.getElementById("file");
+  var dialog = document.getElementById("pick");
+  var linesBox = document.getElementById("lines");
+  var titleInput = document.getElementById("newTitle");
+  var shiftSel = document.getElementById("shift");
+  var warnBox = document.getElementById("warn");
+  var pending = null;             /* {doc, lines} while the dialog is open */
+
+  var dropBtn = document.createElement("button");
+  dropBtn.className = "btn";
+  dropBtn.type = "button";
+  dropBtn.id = "drop";
+  dropBtn.textContent = I18n.t("game.drop");
+  dropBtn.title = I18n.t("game.drop.title");
+  dropBtn.setAttribute("data-i18n", "game.drop");
+  dropBtn.setAttribute("data-i18n-title", "game.drop.title");
+  dropBtn.hidden = true;
+  document.getElementById("add").after(dropBtn);
+
+  document.getElementById("add").addEventListener("click", function(){
+    fileInput.value = "";       /* so re-picking the same file still fires */
+    fileInput.click();
+  });
+
+  fileInput.addEventListener("change", function(){
+    var file = this.files && this.files[0];
+    if(!file){ return; }
+    stop();
+    SongImport.read(file).then(function(doc){
+      var lines = SongImport.analyze(doc);
+      if(!lines.length){ throw failed("import.err.empty"); }
+      pending = {doc:doc, lines:lines};
+      showPicker(file.name, lines);
+    }).catch(function(err){
+      setBanner("game.failed", {why: why(err)});
+      drawFrame(head, null);
+    });
+  });
+
+  function showPicker(filename, lines){
+    renderLines(lines);
+    titleInput.value = filename.replace(/\.(mxl|musicxml|xml)$/i, "").slice(0, 40);
+    preview();
+    dialog.showModal();
+  }
+
+  function renderLines(lines){
+    linesBox.innerHTML = "";
+    lines.forEach(function(line, i){
+      var label = document.createElement("label");
+      label.className = "line";
+      var radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "line";
+      radio.value = String(i);
+      radio.checked = i === 0;
+      var body = document.createElement("div");
+      var name = document.createElement("b");
+      name.textContent = lineLabel(line);
+      var facts = document.createElement("small");
+      facts.textContent = I18n.plural("import.facts", line.notes, {
+        lo: pitchName(line.lo),
+        hi: pitchName(line.hi),
+        pct: Math.round(line.share * 100),
+        /* the inflected form -- "on the flute", "на флейте", "au piano" */
+        instrument: I18n.t(inst.copy.onKey)
+      });
+      body.appendChild(name);
+      body.appendChild(facts);
+      if(i === 0){
+        var best = document.createElement("small");
+        best.className = "best";
+        best.textContent = I18n.t("import.best");
+        facts.appendChild(best);
+      }
+      label.appendChild(radio);
+      label.appendChild(body);
+      radio.addEventListener("change", preview);
+      linesBox.appendChild(label);
+    });
+
+  }
+
+  function chosen(){
+    var picked = linesBox.querySelector("input:checked");
+    return pending.lines[picked ? +picked.value : 0];
+  }
+
+  /* keep the octave suggestion and the warning in step with the choice */
+  function preview(){
+    var line = chosen();
+    shiftSel.value = String(SongImport.suggestOctave(line));
+    describe(line);
+  }
+
+  shiftSel.addEventListener("change", function(){ describe(chosen()); });
+
+  function describe(line){
+    var shift = +shiftSel.value;
+    var notes = [I18n.t("import.range", {
+      lo: pitchName(line.lo + shift * 12),
+      hi: pitchName(line.hi + shift * 12)
+    })];
+    if(line.share < 0.9){ notes.push(I18n.t("import.outOfRange")); }
+    if(line.chords){ notes.push(I18n.plural("import.chords", line.chords)); }
+    warnBox.textContent = notes.join(" ");
+    warnBox.hidden = notes.length === 1 && line.share >= 0.9;
+  }
+
+  /* one entry per (part, staff, voice); songimport.js leaves the wording to us */
+  function lineLabel(line){
+    return line.partName +
+      (line.staff !== "1" ? I18n.t("import.staff", {n: line.staff}) : "") +
+      (line.voice !== "1" ? I18n.t("import.voice", {n: line.voice}) : "");
+  }
+
+  var pitchName = Note.compactMidi;
+
+  document.getElementById("cancel").addEventListener("click", function(){
+    dialog.close();
+    pending = null;
+  });
+
+  document.getElementById("confirm").addEventListener("click", function(){
+    var line = chosen();
+    var result;
+    try {
+      result = SongImport.convert(pending.doc, line, {octave:+shiftSel.value});
+    } catch(err){
+      setBanner("game.failed", {why: why(err)});
+      dialog.close();
+      pending = null;
+      drawFrame(head, null);
+      return;
+    }
+
+    var title = (titleInput.value || I18n.t("game.untitled")).trim().slice(0, 40);
+    var id = "mine-" + Date.now().toString(36);
+    var song = {id:id, title:title, score:result.score, mine:true};
+    SONGS.push(song);
+
+    mine.push({id:id, title:title, score:result.score});
+    keep(MINE_KEY, mine);
+    keep(STORE_KEY, id);
+
+    dialog.close();
+    pending = null;
+    refreshPicker(id);
+    loadSong(song);
+
+    if(result.report.problems.length){
+      setBanner("game.added.problems", null, result.report.problems.length);
+      drawFrame(head, null);
+    }
+  });
+
+  dropBtn.addEventListener("click", function(){
+    var current = songById(songSel.value);
+    if(!current || !current.mine){ return; }
+    stop();
+    SONGS = SONGS.filter(function(s){ return s.id !== current.id; });
+    mine = mine.filter(function(s){ return s.id !== current.id; });
+    keep(MINE_KEY, mine);
+    var next = SONGS[0];
+    keep(STORE_KEY, next.id);
+    refreshPicker(next.id);
+    loadSong(next);
+  });
+
+  /* ---------- switching language ----------
+     The sweep over data-i18n reaches the toolbar and the dialog, but not the
+     canvas, not the play button (whose label depends on whether we are
+     playing), and not the song names in the picker -- those are redrawn here. */
+  function relabel(){
+    I18n.apply(document);
+    playBtn.textContent = I18n.t(playing ? "game.pause" : "game.play");
+    renderTitle();
+    refreshPicker(songSel.value);
+
+    var cur = currentNote();
+    drawFrame(head, cur.now);        /* note tiles, lane labels and the banner */
+
+    if(dialog.open && pending){      /* the picker keeps its choice */
+      var picked = linesBox.querySelector("input:checked");
+      renderLines(pending.lines);
+      if(picked){
+        var again = linesBox.querySelectorAll("input");
+        if(again[+picked.value]){ again[+picked.value].checked = true; }
+      }
+      describe(chosen());
+    }
+  }
+
+  /* ---------- switching theme ----------
+     The panels and the dialog restyle themselves through the cascade; the
+     canvas is the one thing that has to be told, since its pixels were
+     painted with the colours of the theme we just left. */
+  function repaint(){
+    readPalette();
+    var cur = currentNote();
+    drawFrame(head, cur.now);
+  }
+
+  /* ---------- switching instrument ----------
+     The panel changes shape, the little stave may change clef, and both
+     caches were filled for the instrument we just left. Nothing about the
+     piece or the playhead moves, so the transport is left running. */
+  function switchInstrument(next){
+    inst = next;
+    chart = next.chart;
+    sizeGrip();
+    staffCache = {};
+    shown = null;
+    renderTitle();
+    var cur = currentNote();
+    showNote(cur.now, cur.next);
+    if(dialog.open && pending){ describe(chosen()); }
+  }
+
+  var topbar = document.getElementById("topbar");
+  Instruments.mountPicker(topbar);
+  I18n.mountSwitcher(topbar);
+  Theme.mountPicker(topbar);
+  I18n.onChange(relabel);
+  Theme.onChange(repaint);
+  Instruments.onChange(switchInstrument);
+
+  /* notes.html links back with ?song=<id>, so honour that before the memory */
+  var fromUrl = new URLSearchParams(location.search).get("song");
+  var initial = songById(fromUrl) || songById(remembered(STORE_KEY, null)) || SONGS[0];
+  refreshPicker(initial.id);
+
+  I18n.apply(document);      /* the markup ships English; fill in the rest */
+  readPalette();
+  fit();
+  playBtn.textContent = I18n.t("game.play");
+  loadSong(initial);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The mark</title>
+<link rel="icon" href="icon-7.svg" type="image/svg+xml">
+<style>
+  body{
+    margin:0;padding:32px;
+    background:#fdf6e9;
+    background-image:radial-gradient(#eadfcb 1px, transparent 1px);
+    background-size:22px 22px;
+    color:#4a3f35;
+    font-family:"Comic Sans MS","Marker Felt",system-ui,sans-serif;
+  }
+  h1{text-align:center;font-size:28px;margin:0 0 6px}
+  .sub{text-align:center;color:#8a7a68;font-size:14px;margin:0 0 24px}
+  .row{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .card{
+    background:#fffaf1;border:2.5px solid #4a3f35;border-radius:22px;
+    box-shadow:4px 5px 0 rgba(74,63,53,.16);
+    padding:16px;text-align:center;width:300px;
+  }
+  .card h2{font-size:17px;margin:0 0 4px}
+  .card p{font-size:13px;color:#8a7a68;margin:0 0 12px}
+  .sizes{display:flex;align-items:flex-end;justify-content:center;gap:16px}
+  .sizes figure{margin:0}
+  .sizes img{display:block}
+  .sizes figcaption{font-size:11px;color:#8a7a68;margin-top:4px}
+  .dark{margin-top:16px;background:#241f1b;border-radius:14px;padding:14px;display:flex;gap:16px;justify-content:center;align-items:center}
+</style>
+</head>
+<body>
+<h1>The mark</h1>
+<p class="sub">A 7 in a circle. Drawn as paths, so no font has to load.</p>
+<div class="row">
+
+  <div class="card">
+    <h2>Primary — magenta</h2>
+    <p>assets/icon-7.svg</p>
+    <div class="sizes">
+      <figure><img src="icon-7-192.png" width="128" height="128" alt="at 128"><figcaption>128</figcaption></figure>
+      <figure><img src="icon-7-192.png" width="48" height="48" alt="at 48"><figcaption>48</figcaption></figure>
+      <figure><img src="icon-7-32.png" width="32" height="32" alt="at 32"><figcaption>32</figcaption></figure>
+      <figure><img src="icon-7-16.png" width="16" height="16" alt="at 16"><figcaption>16</figcaption></figure>
+    </div>
+    <div class="dark">
+      <img src="icon-7-192.png" width="64" height="64" alt="on dark">
+      <img src="icon-7-32.png" width="32" height="32" alt="on dark, small">
+      <img src="icon-7-16.png" width="16" height="16" alt="on dark, tiny">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Alternate — cream</h2>
+    <p>assets/icon-7-light.svg</p>
+    <div class="sizes">
+      <figure><img src="icon-7-light-512.png" width="128" height="128" alt="light at 128"><figcaption>128</figcaption></figure>
+      <figure><img src="icon-7-light-512.png" width="48" height="48" alt="light at 48"><figcaption>48</figcaption></figure>
+      <figure><img src="icon-7-light-512.png" width="32" height="32" alt="light at 32"><figcaption>32</figcaption></figure>
+      <figure><img src="icon-7-light-512.png" width="16" height="16" alt="light at 16"><figcaption>16</figcaption></figure>
+    </div>
+    <div class="dark">
+      <img src="icon-7-light-512.png" width="64" height="64" alt="light on dark">
+      <img src="icon-7-light-512.png" width="32" height="32" alt="light on dark, small">
+      <img src="icon-7-light-512.png" width="16" height="16" alt="light on dark, tiny">
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

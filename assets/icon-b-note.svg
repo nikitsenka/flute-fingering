@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- B: an eighth note, geometric. The head is a ring rather than a solid
+       blob, so it doubles as a key/hole without naming an instrument. -->
+  <rect width="192" height="192" rx="42" fill="#c32679"/>
+
+  <g fill="#fffaf1">
+    <rect x="100" y="36" width="16" height="98" rx="8"/>
+    <path d="M112 36 C 144 48, 162 72, 149 106 C 153 74, 135 58, 112 60 Z"/>
+  </g>
+
+  <circle cx="70" cy="132" r="34" fill="#fffaf1"/>
+  <circle cx="70" cy="132" r="14" fill="#c32679"/>
+</svg>

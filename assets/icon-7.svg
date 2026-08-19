@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- The mark: a 7 in a circle.
+       Ink ring so it holds its edge on both the cream and the dark theme;
+       the 7 is drawn as a stroked path, not text, so it renders the same
+       everywhere with no font to load. -->
+  <circle cx="96" cy="96" r="75" fill="#c32679" stroke="#4a3f35" stroke-width="10"/>
+  <path d="M58 56 H134 L80 140"
+        fill="none" stroke="#fffaf1" stroke-width="22"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

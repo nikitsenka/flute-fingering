@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flute — where the notes are</title>
+<link rel="icon" href="assets/icon-7.svg" type="image/svg+xml">
+<link rel="icon" href="assets/icon-7-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/icon-7-180.png">
+<link rel="stylesheet" href="theme.css">
+<script src="prefs.js"></script>
+<script src="theme.js"></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--cream);
+    background-image:radial-gradient(var(--dot) 1px, transparent 1px);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:var(--font-ui);
+    padding:18px 14px 40px;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:900px;margin:0 auto}
+  .topbar{display:flex;justify-content:flex-end;gap:9px;margin-bottom:2px}
+  h1{
+    text-align:center;
+    font-size:clamp(24px,6vw,38px);
+    margin:6px 0 2px;
+    letter-spacing:.5px;
+  }
+  .sub{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:15px;
+    margin:0 0 18px;
+  }
+  .card{
+    background:var(--card);
+    border:var(--bw) solid var(--edge);
+    border-radius:var(--r-lg);
+    box-shadow:4px 5px 0 var(--shadow-soft);
+    padding:16px;
+    margin-bottom:16px;
+  }
+  .card h2{
+    font-size:17px;
+    margin:0 0 12px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-weight:normal;
+  }
+  /* --- buttons --- */
+  .buttons{
+    display:flex;
+    flex-wrap:wrap;
+    gap:9px;
+    justify-content:center;
+  }
+  .nbtn{
+    font-family:inherit;
+    cursor:pointer;
+    border:var(--bw) solid var(--edge);
+    border-radius:var(--r-note);
+    background:var(--mint);
+    color:var(--ink);
+    padding:9px 12px;
+    min-width:62px;
+    line-height:1.15;
+    box-shadow:2px 3px 0 var(--shadow);
+    transition:transform .08s ease, box-shadow .08s ease, filter .15s ease;
+  }
+  .nbtn .syl{display:block;font-size:17px;font-weight:bold}
+  .nbtn .oct{display:block;font-size:11px;color:var(--ink-soft)}
+  .nbtn:hover{filter:brightness(1.04)}
+  .nbtn:active{transform:translate(2px,3px);box-shadow:0 0 0 rgba(0,0,0,0)}
+  .nbtn.active{
+    transform:translate(2px,3px);
+    box-shadow:inset 0 0 0 3px var(--card), 0 0 0 3px var(--select-ring);
+  }
+  /* --- views --- */
+  .views{
+    display:flex;
+    flex-wrap:wrap;
+    gap:16px;
+    justify-content:center;
+    align-items:stretch;
+  }
+  .views .card{flex:1 1 320px;margin-bottom:0;display:flex;flex-direction:column;align-items:center}
+  svg{max-width:100%;height:auto;display:block}
+  .now{
+    text-align:center;
+    background:var(--lemon);
+  }
+  .now .big{
+    font-size:clamp(30px,9vw,46px);
+    font-weight:bold;
+    display:block;
+    line-height:1.2;
+  }
+  .now .small{color:var(--ink-soft);font-size:15px}
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    justify-content:center;
+    font-size:14px;
+    color:var(--ink-soft);
+    align-items:center;
+  }
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  /* the swatch colour is set from the instrument's legend entry */
+  .dot{
+    width:17px;height:17px;border-radius:50%;
+    border:var(--bw) solid var(--swatch-edge);display:inline-block;
+  }
+  /* the one-note stave, engraved by VexFlow the same way game.html does it */
+  #staff svg{width:100%;max-width:280px;height:auto;display:block}
+  .hint{
+    font-size:14px;color:var(--ink-soft);text-align:center;margin:10px 0 0;line-height:1.5;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar" id="topbar"></div>
+
+  <h1 id="title">Flute — where the notes are</h1>
+  <p class="sub" id="sub"></p>
+
+  <div class="card" style="background:var(--sky)">
+    <h2 data-i18n="index.pick">Pick a note</h2>
+    <div class="buttons" id="buttons"></div>
+  </div>
+
+  <div class="card now">
+    <span class="big" id="noteName"></span>
+    <span class="small" id="noteInfo"></span>
+  </div>
+
+  <div class="views">
+    <div class="card" style="background:var(--mint)">
+      <h2 id="chartTitle"></h2>
+      <svg id="chartSvg" role="img" aria-label=""></svg>
+      <div class="legend" id="legend" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card" style="background:var(--pink)">
+      <h2 data-i18n="index.staff">The note on the staff</h2>
+      <div id="staff" role="img" data-i18n-aria="index.staff.aria"
+           aria-label="The note on the staff"></div>
+    </div>
+  </div>
+
+  <div class="card" style="background:var(--lav)">
+    <p class="hint" id="hint"></p>
+  </div>
+
+</div>
+
+
+<script src="i18n.js"></script>
+<script src="lang/en.js"></script>
+<script src="lang/ru.js"></script>
+<script src="lang/de.js"></script>
+<script src="lang/es.js"></script>
+<script src="lang/fr.js"></script>
+<script src="lang/ja.js"></script>
+<script src="lang/zh.js"></script>
+<script src="notenames.js"></script>
+<script src="vendor/vexflow.js"></script>
+<script src="instruments.js"></script>
+<script src="instruments/flute.js"></script>
+<script src="instruments/piano.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* Nothing about a particular instrument lives on this page any more. The
+     buttons, the big drawing, the legend and every line of prose come from
+     whichever definition Instruments.current() hands back; switching one out
+     for another is the same redraw as switching language or theme. */
+  var VF = window.VexFlow;
+
+  var PASTELS = ["--mint","--pink","--lav","--lemon","--peach","--sky"];
+
+  var buttonsBox = document.getElementById("buttons");
+  var chartSvg   = document.getElementById("chartSvg");
+  var chartTitle = document.getElementById("chartTitle");
+  var legendBox  = document.getElementById("legend");
+  var staffBox   = document.getElementById("staff");
+  var noteNameEl = document.getElementById("noteName");
+  var noteInfoEl = document.getElementById("noteInfo");
+  var hintEl     = document.getElementById("hint");
+  var titleEl    = document.getElementById("title");
+  var subEl      = document.getElementById("sub");
+
+  var inst = Instruments.current();
+  var notes = inst.reference.notes();
+  var current = notes.indexOf("c/4") >= 0 ? notes.indexOf("c/4") : 0;
+
+  /* the international name, which every language shows alongside its own */
+  function spn(id){
+    var p = Note.parse(id);
+    return p.step.toUpperCase() + (p.sharp ? "♯" : "") + p.oct;
+  }
+
+  /* ---------- кнопки ---------- */
+  /* rebuilt on a language change: both lines of every button are translated */
+  function renderButtons(){
+    buttonsBox.innerHTML = "";
+    notes.forEach(function(id, i){
+      var b = document.createElement("button");
+      b.className = "nbtn";
+      b.type = "button";
+      b.style.background = "var(" + PASTELS[i % PASTELS.length] + ")";
+      b.innerHTML = '<span class="syl"></span><span class="oct"></span>';
+      b.querySelector(".syl").textContent = Note.of(id);
+      b.querySelector(".oct").textContent = Note.octaveShort(Note.sci(id));
+      b.addEventListener("click", function(){ select(i); });
+      buttonsBox.appendChild(b);
+    });
+  }
+
+  /* ---------- the instrument's own drawing ---------- */
+  function renderLegend(){
+    legendBox.innerHTML = "";
+    inst.reference.legend().forEach(function(entry){
+      var span = document.createElement("span");
+      var dot = document.createElement("i");
+      dot.className = "dot";
+      dot.style.background = entry.fill;
+      var text = document.createElement("span");
+      text.textContent = I18n.t(entry.key);
+      span.appendChild(dot);
+      span.appendChild(text);
+      legendBox.appendChild(span);
+    });
+  }
+
+  /* ---------- нотный стан ----------
+     Engraved by VexFlow rather than drawn by hand: it already ships with the
+     page for the other two, and it knows about bass clef and ledger lines,
+     which a keyboard's two-and-a-half octaves need and a flute never did. */
+  function drawStaff(pitch){
+    staffBox.innerHTML = "";
+    var host = document.createElement("div");
+    var renderer = new VF.Renderer(host, VF.Renderer.Backends.SVG);
+    renderer.resize(260, 170);
+    var ctx = renderer.getContext();
+    var stave = new VF.Stave(2, 0, 250);
+    stave.addClef(inst.clefFor(pitch));
+    stave.setContext(ctx).draw();
+
+    var note = new VF.StaveNote({
+      keys: [pitch], duration: "q", autoStem: true,
+      clef: inst.clefFor(pitch)
+    });
+    var voice = new VF.Voice({numBeats:1, beatValue:4});
+    voice.addTickables([note]);
+    VF.Accidental.applyAccidentals([voice], "C");
+    new VF.Formatter().joinVoices([voice]).format([voice], 110);
+    voice.draw(ctx, stave);
+
+    var svg = ctx.svg;
+    /* room above and below the five lines: a low C sits three ledger lines
+       under a treble stave, and the piano reaches further still */
+    svg.setAttribute("viewBox", "0 10 260 130");
+    svg.removeAttribute("width");
+    svg.removeAttribute("height");
+    staffBox.appendChild(svg);
+  }
+
+  /* ---------- выбор ноты ---------- */
+  function select(i){
+    current = Math.max(0, Math.min(notes.length - 1, i));
+    var pitch = notes[current];
+    var btns = buttonsBox.querySelectorAll(".nbtn");
+    for(var k = 0; k < btns.length; k++){
+      btns[k].classList.toggle("active", k === current);
+    }
+    noteNameEl.textContent = Note.of(pitch);
+    noteInfoEl.textContent = Note.octaveLong(Note.sci(pitch)) + " · " + spn(pitch);
+    inst.reference.draw(chartSvg, pitch, selectPitch);
+    drawStaff(pitch);
+  }
+
+  /* the piano's keyboard is clickable, so it needs a way back to the buttons */
+  function selectPitch(pitch){
+    var i = notes.indexOf(pitch);
+    if(i >= 0){ select(i); }
+  }
+
+  /* the hint names the finger labels, so it is filled in rather than swept */
+  function renderHint(){
+    hintEl.innerHTML = I18n.t(inst.copy.hintKey, {
+      L: I18n.t("hand.left.short"),
+      R: I18n.t("hand.right.short")
+    });
+  }
+
+  function renderHeader(){
+    var title = I18n.t("app.index.title", {instrument: Instruments.name(inst)});
+    titleEl.textContent = title;
+    document.title = title;
+    subEl.textContent = I18n.t(inst.copy.subKey);
+    chartTitle.textContent = I18n.t(inst.copy.chartCardKey);
+    chartSvg.setAttribute("aria-label", I18n.t(inst.copy.chartCardKey));
+    chartSvg.setAttribute("viewBox", inst.reference.viewBox);
+  }
+
+  /* The SVG диаграммы hold their own text nodes and their own colours;
+     nothing sweeps either, so a language, theme or instrument change all go
+     back through select(). */
+  function renderAll(){
+    I18n.apply(document);
+    renderHeader();
+    renderHint();
+    renderLegend();
+    renderButtons();
+    select(current);
+  }
+
+  /* A new instrument brings a different list of pitches, so the selection
+     starts over rather than being carried across by index. */
+  function switchInstrument(next){
+    inst = next;
+    notes = inst.reference.notes();
+    current = notes.indexOf("c/4") >= 0 ? notes.indexOf("c/4") : 0;
+    renderAll();
+  }
+
+  var topbar = document.getElementById("topbar");
+  Instruments.mountPicker(topbar);
+  I18n.mountSwitcher(topbar);
+  Theme.mountPicker(topbar);
+  I18n.onChange(renderAll);
+  Theme.onChange(renderAll);
+  Instruments.onChange(switchInstrument);
+  renderAll();
+})();
+</script>
+</body>
+</html>

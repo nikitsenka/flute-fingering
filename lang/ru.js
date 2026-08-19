@@ -1,0 +1,151 @@
+/* Русский — the wording the app originally shipped with. */
+window.I18N_STRINGS = window.I18N_STRINGS || {};
+window.I18N_STRINGS.ru = {
+  "lang.pick": "Язык",
+  "theme.pick": "Тема",
+  "theme.light": "Светлая",
+  "theme.dark": "Тёмная",
+  "theme.studio": "Студия",
+
+  /* ---------- инструменты ---------- */
+  "instrument.pick": "Инструмент",
+  "instrument.flute": "Флейта",
+  "instrument.piano": "Фортепиано",
+
+  /* ---------- заголовки страниц ---------- */
+  "app.index.title": "{instrument} — где какая нота",
+  "app.notes.plain": "ноты · {instrument}",
+  "app.notes.title": "{song} — ноты · {instrument}",
+  "app.game.plain": "тренажёр · {instrument}",
+  "app.game.title": "{song} — тренажёр · {instrument}",
+
+  /* ---------- названия нот ---------- */
+  "note.c": "До",
+  "note.d": "Ре",
+  "note.e": "Ми",
+  "note.f": "Фа",
+  "note.g": "Соль",
+  "note.a": "Ля",
+  "note.b": "Си",
+
+  "octave.system": "register",
+  "octave.short": "{n}-я окт.",
+  "octave.long": "{n}-я октава",
+  "octave.small.short": "мал.",
+  "octave.small.long": "малая октава",
+  "octave.great.short": "бол.",
+  "octave.great.long": "большая октава",
+  "octave.contra.short": "контр",
+  "octave.contra.long": "контроктава",
+
+  "key.major": "{note} мажор",
+  "key.minor": "{note} минор",
+
+  "hand.left.short": "Л",
+  "hand.right.short": "П",
+
+  /* ---------- встроенные пьесы ---------- */
+  "song.gamma": "Гамма {key}",
+
+  /* ---------- флейта ---------- */
+  "flute.on": "на флейте",
+  "flute.sub": "Флейта Бёма, до-колено, закрытые клапаны",
+  "flute.chartCard": "Аппликатура",
+  "flute.legend.closed": "закрыто",
+  "flute.legend.open": "открыто",
+  "flute.hint": "{L}1, {L}2, {L}3 — указательный, средний, безымянный пальцы левой руки.<br>" +
+                "{R}1, {R}2, {R}3 — пальцы правой руки, мизинец — клапан ми-бемоль (ре♯).<br>" +
+                "Мизинец правой руки почти всегда лежит на своём клапане.",
+  "flute.about": "Ноты и аппликатура нарисованы кодом (VexFlow + SVG) — картинок больше нет, " +
+                 "всё перестраивается под ширину экрана.<br>" +
+                 "Закрашенный клапан — зажат, пустой — открыт; сверху вниз: большой палец, " +
+                 "левая рука, правая рука, мизинец (ми-бемоль).",
+  "flute.svg.lips": "губы",
+  "flute.svg.left": "левая рука",
+  "flute.svg.right": "правая рука",
+  "flute.svg.pinky": "мизинец",
+
+  /* ---------- фортепиано ---------- */
+  "piano.on": "на фортепиано",
+  "piano.sub": "Две октавы вверх от до первой октавы — нажмите клавишу, чтобы увидеть ноту",
+  "piano.chartCard": "Клавиатура",
+  "piano.legend.press": "сюда нажимаем",
+  "piano.legend.white": "белая клавиша",
+  "piano.legend.black": "чёрная клавиша",
+  "piano.hint": "Самое левое до здесь — до первой октавы: нота, которая лежит прямо под " +
+                "скрипичным станом и прямо над басовым.<br>" +
+                "Номеров пальцев на схеме нет намеренно: каким пальцем брать ноту, " +
+                "решают соседние ноты, а не она сама.",
+  "piano.about": "Ноты и клавиатуры нарисованы кодом (VexFlow + SVG), поэтому всё " +
+                 "перестраивается под ширину экрана.<br>" +
+                 "Каждая маленькая клавиатура — одна октава с закрашенной нужной клавишей; " +
+                 "цифра под ней говорит, какая это октава.",
+
+  /* ---------- index.html ---------- */
+  "index.pick": "Выберите ноту",
+  "index.staff": "Нота на нотном стане",
+  "index.staff.aria": "Нота на нотном стане",
+
+  /* ---------- notes.html ---------- */
+  "notes.bars": {one: "{n} такт", few: "{n} такта", many: "{n} тактов", other: "{n} такта"},
+  "notes.zoomIn.aria": "Крупнее",
+  "notes.zoomOut.aria": "Мельче",
+  "notes.denser": "Плотнее строки",
+  "notes.trainer": "Тренажёр: ноты падают сверху",
+
+  /* ---------- game.html ---------- */
+  "game.sub": "Ноты падают сверху. Дорожка, до которой они долетают — играй сейчас.",
+  "game.play": "▶ Играть",
+  "game.pause": "❚❚ Пауза",
+  "game.restart": "↺ Сначала",
+  "game.piece": "пьеса",
+  "game.add": "＋ Из файла",
+  "game.add.title": "Загрузить MusicXML (.mxl)",
+  "game.tempo": "темп",
+  "game.sound": "🔊 Звук",
+  "game.bar": "такт",
+  "game.staffCard": "на нотном стане",
+  "game.drop": "✕ Убрать",
+  "game.drop.title": "Убрать загруженную пьесу",
+  "game.done": "Готово! ↺ чтобы повторить",
+  "game.failed": "Не вышло: {why}",
+  "game.added.problems": {one: "Добавлено, но {n} такт спорный",
+                          few: "Добавлено, но {n} такта спорных",
+                          many: "Добавлено, но {n} тактов спорных",
+                          other: "Добавлено, но {n} такта спорных"},
+  "game.footer": "Пробел — старт и пауза, <b>R</b> — сначала.",
+  "game.sheetLink": "Все ноты со схемами",
+  "game.untitled": "Своя пьеса",
+
+  /* ---------- окно загрузки ---------- */
+  "import.which": "Какую строку играем?",
+  "import.hint": "В файле несколько партий. Выберите главную мелодию.",
+  "import.name": "название",
+  "import.octave": "октава",
+  "import.asis": "как есть",
+  "import.cancel": "Отмена",
+  "import.confirm": "Добавить",
+  "import.staff": " · нотоносец {n}",
+  "import.voice": " · голос {n}",
+  "import.facts": {one: "{n} нота · {lo}–{hi} · {pct}% играется {instrument}",
+                   few: "{n} ноты · {lo}–{hi} · {pct}% играется {instrument}",
+                   many: "{n} нот · {lo}–{hi} · {pct}% играется {instrument}",
+                   other: "{n} ноты · {lo}–{hi} · {pct}% играется {instrument}"},
+  "import.best": " — похоже на главную мелодию",
+  "import.range": "Диапазон после сдвига: {lo}–{hi}.",
+  "import.outOfRange": "Часть нот выходит за диапазон инструмента — они всё равно будут падать, " +
+                       "но окошко схемы на них останется пустым.",
+  "import.chords": {one: "В этой строке есть аккорд ({n}) — останется верхняя нота.",
+                    few: "В этой строке есть аккорды ({n}) — останется верхняя нота.",
+                    many: "В этой строке есть аккорды ({n}) — останется верхняя нота.",
+                    other: "В этой строке есть аккорды ({n}) — останется верхняя нота."},
+
+  "import.err.notZip": "не похоже на zip-архив (.mxl)",
+  "import.err.compression": "неизвестное сжатие в архиве",
+  "import.err.notXml": "файл не читается как XML",
+  "import.err.notMusicXml": "это не MusicXML",
+  "import.err.noScore": "внутри архива нет партитуры",
+  "import.err.noPart": "партия не найдена",
+  "import.err.noNotes": "в этой строке нет нот",
+  "import.err.empty": "в файле не нашлось нот"
+};

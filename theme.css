@@ -1,0 +1,257 @@
+/* The look of the app -- colour, type and shape -- shared by all three pages.
+ *
+ * Everything that has a look goes through a token here, including the bits
+ * drawn from JavaScript. The instrument drawings on index.html, the falling
+ * notes on game.html's canvas and the charts in instruments/*.js all read these
+ * back with getComputedStyle, so there is one place to change a colour and one
+ * place that knows what each theme looks like.
+ *
+ * theme.js sets data-theme on <html>; with no attribute the light palette
+ * applies, which is also what a page shows before any script has run.
+ *
+ * A token written as var(--other) follows that other token through every theme,
+ * so a theme only overrides it when it wants something different. That is why
+ * the dark block below says nothing about borders or type: it is the same
+ * picture book, drawn at night.
+ */
+:root{
+  /* paper */
+  --cream:#fdf6e9;          /* page */
+  --card:#fffaf1;           /* raised surfaces */
+  --dot:#eadfcb;            /* the dotted background pattern */
+  --ink:#4a3f35;            /* text, borders, drawn lines */
+  --ink-soft:#8a7a68;       /* captions and labels */
+  --line:#c9b8a3;
+
+  /* the pastels the cards and the lanes are tinted with */
+  --mint:#cfeadd;
+  --pink:#f7d6dd;
+  --lav:#ddd6f0;
+  --lemon:#faeec2;
+  --peach:#fadcc6;
+  --sky:#cfe3f2;
+
+  /* the one loud colour: the note being played now, and a pressed key */
+  --magenta:#c32679;
+  --on-magenta:#fffaf1;     /* text that sits on top of it */
+
+  /* the primary action, and a toggle that is switched on */
+  --accent:var(--mint);
+  --accent-on:var(--ink);
+  --pressed-bg:var(--ink);
+  --pressed-fg:var(--card);
+
+  /* ---------- type ---------- */
+  /* the handwriting faces carry no CJK glyphs, so Japanese and Chinese fall
+     through to the gothic faces named after them */
+  --font-ui:"Comic Sans MS","Segoe Print","Bradley Hand","Marker Felt",cursive,
+            "Hiragino Maru Gothic ProN","Yu Gothic UI","PingFang SC","Microsoft YaHei",
+            system-ui,sans-serif;
+  /* numbers and pitch names, for a theme that wants them set apart */
+  --font-mono:var(--font-ui);
+
+  /* ---------- shape ---------- */
+  --edge:var(--ink);        /* border colour */
+  --select-ring:var(--ink); /* around the note button that is chosen */
+  /* the legend swatches: an empty one is read by its ring, so on a theme
+     whose surfaces sit close together the ring has to carry it */
+  --swatch-edge:var(--edge);
+  --bw:2.5px;               /* border width, outer */
+  --bw-thin:2px;            /*               inner, inside the dialog */
+  --r-lg:22px;              /* cards, panels, the sheet, the dialog */
+  --r-note:16px;            /* the note buttons on index.html */
+  --r-md:14px;              /* buttons and controls */
+  --r-sm:12px;              /* inputs inside the dialog */
+
+  --shadow:rgba(74,63,53,.22);
+  --shadow-soft:rgba(74,63,53,.16);
+  --backdrop:rgba(74,63,53,.34);
+
+  /* index.html -- the flute drawing */
+  --flute-body:#f3e6cf;
+
+  /* game.html -- the falling-note canvas */
+  --lane-a:#fbf4e6;         /* alternating lane stripes */
+  --lane-b:#fff9ef;
+  --lane-line:#e6d9c2;      /* between two lanes */
+  --tile-border:var(--ink); /* around a falling note */
+  --banner-bg:rgba(255,250,241,.92);
+
+  /* instruments/flute.js -- the key charts */
+  --grip-pressed:#c32679;
+  --grip-open:#fffaf1;
+  --grip-stroke:#9a8a76;
+  --grip-bg:#f7f0e1;
+
+  /* instruments/piano.js -- the keyboard diagrams */
+  --key-white:#fffaf1;
+  --key-black:#4a3f35;
+  --key-pressed:#c32679;
+  --key-stroke:#9a8a76;
+  --key-label:#8a7a68;
+}
+
+/* Warm dark: the same paper at night rather than a different app. The ground
+   keeps its brown cast and the pastels stay pastel, just deep enough that
+   cream-coloured ink sits comfortably on them. */
+:root[data-theme="dark"]{
+  --cream:#241f1b;
+  --card:#2f2823;
+  --dot:#332c26;
+  --ink:#f0e6d6;
+  --ink-soft:#b3a290;
+  --line:#5a4c3e;
+
+  --mint:#2e4a40;
+  --pink:#4a2f36;
+  --lav:#3a3450;
+  --lemon:#4a4229;
+  --peach:#4a3729;
+  --sky:#2b3d4c;
+
+  --magenta:#ff5fa8;
+  --on-magenta:#241f1b;     /* the bright pink wants dark text on it */
+
+  --shadow:rgba(0,0,0,.5);
+  --shadow-soft:rgba(0,0,0,.42);
+  --backdrop:rgba(0,0,0,.62);
+
+  --flute-body:#4a3f35;
+
+  --lane-a:#2a241f;
+  --lane-b:#201b18;
+  --lane-line:#3a322b;
+  --banner-bg:rgba(47,40,35,.94);
+
+  --grip-pressed:#ff5fa8;
+  --grip-open:#2f2823;
+  --grip-stroke:#8a7a68;
+  --grip-bg:#3a322b;
+
+  /* A keyboard at night is still a keyboard: the white keys stay the lighter
+     of the two rather than swapping places with the black ones. */
+  --key-white:#cfc3b0;
+  --key-black:#1a1613;
+  --key-pressed:#ff5fa8;
+  --key-stroke:#8a7a68;
+  --key-label:#b3a290;
+}
+
+/* Studio: an instrument panel rather than a picture book, and the one theme
+   that changes more than colour -- slate ground, hairline borders, tight radii,
+   no offset shadows, Inter over the handwriting face and a monospace for
+   anything numeric.
+
+   Two accents split the job the single magenta did before: aqua for what your
+   fingers are doing (a held key, the primary button), amber for what is
+   sounding right now (the falling tile, the hit line, the lane under it).
+
+   Inter and JetBrains Mono are used when they are installed and fall back to
+   the system UI and monospace faces otherwise. Nothing is fetched: this project
+   vendors everything and loads no CDN. */
+:root[data-theme="studio"]{
+  --cream:#0d1117;
+  --card:#161b22;
+  --dot:transparent;        /* the dotted paper has no place here */
+  --ink:#e6edf3;
+  --ink-soft:#8b98ab;
+  --line:#38424f;
+
+  /* a cool hue ramp in place of the pastels; the names are historical. Only
+     lemon breaks the run, staying warm so the dialog's warning still reads as
+     a caution rather than as more chrome. */
+  --mint:hsla(168,60%,60%,.16);
+  --pink:hsla(294,60%,60%,.16);
+  --lav:hsla(258,60%,60%,.16);
+  --lemon:hsla(38,70%,55%,.16);
+  --peach:hsla(222,60%,60%,.16);
+  --sky:hsla(204,60%,60%,.16);
+
+  --magenta:#ffb74d;        /* amber: the note sounding now */
+  --on-magenta:#2a1b03;
+
+  --accent:#5de4c7;         /* aqua: the primary action, a held key */
+  --accent-on:#08201b;
+  --pressed-bg:var(--accent);
+  --pressed-fg:var(--accent-on);
+
+  --font-ui:Inter,"Segoe UI",
+            "Hiragino Sans","Yu Gothic UI","PingFang SC","Microsoft YaHei",
+            system-ui,sans-serif;
+  --font-mono:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
+
+  --edge:#2a3341;
+  --select-ring:var(--accent);
+  --swatch-edge:var(--ink-soft);
+  --bw:1px;
+  --bw-thin:1px;
+  --r-lg:14px;
+  --r-note:8px;
+  --r-md:9px;
+  --r-sm:8px;
+
+  --shadow:transparent;     /* the chunky offset shadow is not this look */
+  --shadow-soft:transparent;
+  --backdrop:rgba(5,7,10,.72);
+
+  --flute-body:#1c2230;
+
+  --lane-a:#191f27;
+  --lane-b:#161b22;
+  --lane-line:#2a3341;
+  --tile-border:#38424f;
+  --banner-bg:rgba(22,27,34,.94);
+
+  --grip-pressed:#5de4c7;
+  --grip-open:rgba(230,237,243,.05);
+  --grip-stroke:#4a5668;
+  --grip-bg:#11161f;
+
+  /* the keyboard keeps its own logic: white keys lighter than black ones, with
+     aqua for a key that is down */
+  --key-white:#cfd8e3;
+  --key-black:#11161f;
+  --key-pressed:#5de4c7;
+  --key-stroke:#4a5668;
+  --key-label:#8b98ab;
+}
+
+/* Links never had a colour of their own and fell back to the browser's blue,
+   which was already out of place on cream and unreadable on a dark ground. */
+a{
+  color:var(--ink);
+  text-decoration-thickness:1px;
+  text-underline-offset:3px;
+}
+a:hover{color:var(--magenta)}
+
+/* ---------- VexFlow ----------
+   The engraver puts fill="black" stroke="black" on the <svg> root only and
+   lets everything inherit, so one rule here recolours every stave, notehead
+   and stem. The fingering charts drawn into the same SVG set their own
+   colours element by element, so they are left alone. */
+.sheet svg, #staff svg{
+  fill:var(--ink);
+  stroke:var(--ink);
+}
+/* Ledger lines are the exception: VexFlow writes stroke="#444" on them, and an
+   inherited colour loses to an element's own presentation attribute. A rule
+   aimed at the element wins, which matters now that a note can sit several
+   ledger lines below the stave -- a dark grey line on the dark ground was
+   simply not there. */
+.sheet svg .vf-stavenote path, #staff svg .vf-stavenote path{stroke:var(--ink)}
+
+/* ---------- the topbar pickers: language, instrument, theme ----------
+   All three carry class "lang" and share this one rule rather than each page
+   restating it. */
+select.lang{
+  font-family:var(--font-ui);
+  font-size:15px;
+  cursor:pointer;
+  border:var(--bw) solid var(--edge);
+  border-radius:var(--r-md);
+  background:var(--card);
+  color:var(--ink);
+  padding:6px 10px;
+  box-shadow:2px 3px 0 var(--shadow);
+}

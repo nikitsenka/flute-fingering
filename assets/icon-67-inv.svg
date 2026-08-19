@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- Reversed: ink ground, the 67 knocked out in paper. -->
+  <rect x="3.5" y="3.5" width="185" height="185" rx="40" fill="#4a3f35"/>
+
+  <g fill="none" stroke="#fdf6e9" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+    <!-- the 6's tail, which is also the note's stem -->
+    <path d="M33 122 L33 76 C33 52, 58 44, 78 58"/>
+    <!-- the 7 -->
+    <path d="M108 54 H166 L122 142"/>
+  </g>
+
+  <!-- the bowl of the 6, drawn as a notehead -->
+  <ellipse cx="58" cy="118" rx="26" ry="19" fill="#4a3f35" stroke="#fdf6e9" stroke-width="15"
+           transform="rotate(-20 58 118)"/>
+</svg>

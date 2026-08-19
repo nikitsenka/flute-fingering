@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- Same mark, inverted: cream disc, magenta 7. -->
+  <circle cx="96" cy="96" r="75" fill="#fffaf1" stroke="#4a3f35" stroke-width="10"/>
+  <path d="M58 56 H134 L80 140"
+        fill="none" stroke="#c32679" stroke-width="22"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

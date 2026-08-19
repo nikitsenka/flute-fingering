@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>flute sheet music</title>
+<link rel="icon" href="assets/icon-7.svg" type="image/svg+xml">
+<link rel="icon" href="assets/icon-7-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/icon-7-180.png">
+<link rel="stylesheet" href="theme.css">
+<script src="prefs.js"></script>
+<script src="theme.js"></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--cream);
+    background-image:radial-gradient(var(--dot) 1px, transparent 1px);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:var(--font-ui);
+    padding:18px 14px 48px;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{
+    text-align:center;
+    font-size:clamp(22px,5vw,34px);
+    margin:6px 0 2px;
+    letter-spacing:.5px;
+  }
+  .sub{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:15px;
+    margin:0 0 18px;
+  }
+  .bar{
+    display:flex;
+    gap:9px;
+    justify-content:center;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-bottom:18px;
+  }
+  .btn{
+    font-family:inherit;
+    font-size:15px;
+    cursor:pointer;
+    border:var(--bw) solid var(--edge);
+    border-radius:var(--r-md);
+    background:var(--sky);
+    color:var(--ink);
+    padding:7px 14px;
+    box-shadow:2px 3px 0 var(--shadow);
+  }
+  .btn:active{transform:translate(2px,3px);box-shadow:0 0 0 rgba(0,0,0,0)}
+  .btn[aria-pressed="true"]{background:var(--pressed-bg);color:var(--pressed-fg)}
+  .sheet{
+    background:var(--card);
+    border:var(--bw) solid var(--edge);
+    border-radius:var(--r-lg);
+    box-shadow:4px 5px 0 var(--shadow-soft);
+    padding:14px 10px 6px;
+  }
+  .sheet svg{display:block;margin:0 auto;max-width:100%}
+  .note{
+    font-size:14px;
+    color:var(--ink-soft);
+    text-align:center;
+    line-height:1.6;
+    margin:16px 0 0;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1 id="title">flute sheet music</h1>
+  <p class="sub" id="sub"></p>
+
+  <div class="bar">
+    <button class="btn" id="zoomOut" type="button" data-i18n-aria="notes.zoomOut.aria">&minus;</button>
+    <button class="btn" id="zoomIn" type="button" data-i18n-aria="notes.zoomIn.aria">+</button>
+    <button class="btn" id="fingers" type="button" aria-pressed="true">Fingerings</button>
+    <button class="btn" id="dense" type="button" aria-pressed="false" data-i18n="notes.denser">Tighter lines</button>
+    <span id="topbar"></span>
+  </div>
+
+  <div class="sheet" id="sheet"></div>
+
+  <p class="note">
+    <span id="about"></span><br>
+    <a href="game.html" id="back" data-i18n="notes.trainer">Trainer: notes fall from the top</a>
+  </p>
+
+</div>
+
+<script src="i18n.js"></script>
+<script src="lang/en.js"></script>
+<script src="lang/ru.js"></script>
+<script src="lang/de.js"></script>
+<script src="lang/es.js"></script>
+<script src="lang/fr.js"></script>
+<script src="lang/ja.js"></script>
+<script src="lang/zh.js"></script>
+<script src="notenames.js"></script>
+<script src="vendor/vexflow.js"></script>
+<script src="durations.js"></script>
+<script src="score.js"></script>
+<script src="songs.js"></script>
+<script src="instruments.js"></script>
+<script src="instruments/flute.js"></script>
+<script src="instruments/piano.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var VF = window.VexFlow;
+  var sheet = document.getElementById("sheet");
+
+  /* Which instrument's diagrams go under the notes. Re-read on every redraw,
+     since the charts are different shapes and the clef rule differs too. */
+  var inst = Instruments.current();
+  var chart = inst.chart;
+
+  /* ---------- which piece are we showing? ----------
+     game.html links here with ?song=<id>; failing that we fall back to the
+     piece it last had open, and finally to the first one. Pieces imported
+     from a file live in localStorage, so they have to be merged in here too. */
+  var mine = Prefs.get("flute.userSongs", []);
+  if(Object.prototype.toString.call(mine) === "[object Array]"){
+    mine.forEach(function(s){
+      if(s && s.id && s.score){ SONGS.push({id:s.id, title:s.title, score:s.score}); }
+    });
+  }
+
+  function songById(id){
+    for(var i = 0; i < SONGS.length; i++){
+      if(SONGS[i].id === id){ return SONGS[i]; }
+    }
+    return null;
+  }
+
+  var wanted = new URLSearchParams(location.search).get("song");
+  if(!wanted){ wanted = Prefs.get("flute.song", null); }
+  var song = songById(wanted) || SONGS[0];
+  var SCORE = song.score;
+
+  /* The bar count agrees with the number -- 1 такт, 2 такта, 5 тактов -- which
+     Intl.PluralRules works out from the language for us. */
+  function renderHeader(){
+    var title = I18n.t("app.notes.title", {
+      song: songTitle(song),
+      instrument: Instruments.name(inst)
+    });
+    document.getElementById("title").textContent = title;
+    document.title = title;
+    document.getElementById("sub").textContent =
+      I18n.plural("notes.bars", SCORE.measures.length) + " · " +
+      Note.key(SCORE.key) + " · " + (SCORE.time || "4/4");
+    /* the toggle, the paragraph and the diagrams all belong to the instrument */
+    document.getElementById("fingers").textContent = I18n.t(inst.copy.chartCardKey);
+    document.getElementById("about").innerHTML = I18n.t(inst.copy.aboutKey);
+  }
+
+  document.getElementById("back").href = "game.html?song=" + encodeURIComponent(song.id);
+
+  var METER = (SCORE.time || "4/4").split("/");
+  var TOP = +METER[0] || 4;
+  var BOTTOM = +METER[1] || 4;
+
+  var STAVE_Y   = 4;     // Stave() reserves 40 units above the top line
+  var STAFF_H   = 124;   // vertical room for the stave alone
+  var BAND_TOP  = 116;   // where the fingering diagrams start
+  var PAD_LEFT  = 10;
+  var PAD_RIGHT = 10;
+  var scale     = 1;
+  var denser    = false;
+  var fingers   = true;
+
+  function systemHeight(){
+    return fingers ? BAND_TOP + chart.height + 8 : STAFF_H;
+  }
+
+  /* ---------- how wide does a measure want to be? ---------- */
+  function measureWeight(m){
+    var w = 40;                                  // padding inside the bar
+    m.notes.forEach(function(nt){
+      var beats = (DUR[nt[1]] || DUR.q).beats;
+      w += beats >= 2 ? 70 : beats >= 1 ? 52 : beats >= 0.5 ? 34 : 26;
+    });
+    return w;
+  }
+
+  /* The narrowest a measure may get before the line has to be split. With the
+     diagrams on, every note needs room for a diagram plus a gap. */
+  function measureMin(m){
+    var per = fingers ? chart.width + 10 : 26;
+    return 34 + m.notes.length * per;
+  }
+
+  /* Lines follow the system breaks of the original drawio whenever they fit;
+     a system too wide for the screen is packed into as many lines as needed. */
+  function layout(totalWidth){
+    var budget = (denser ? totalWidth * 1.6 : totalWidth) - PAD_LEFT - PAD_RIGHT - 90;
+    var lines = [];
+
+    function span(idxs){
+      return idxs.reduce(function(a, i){
+        return a + measureMin(SCORE.measures[i]);
+      }, 0);
+    }
+
+    /* Split a system into equal-sized chunks rather than filling greedily,
+       so a four-bar system becomes 2 + 2 instead of 3 + a lonely 1. */
+    function pack(idxs){
+      for(var n = Math.ceil(span(idxs) / budget); n <= idxs.length; n++){
+        var per = Math.ceil(idxs.length / n);
+        var chunks = [];
+        for(var i = 0; i < idxs.length; i += per){ chunks.push(idxs.slice(i, i + per)); }
+        var fits = chunks.every(function(c){ return span(c) <= budget; });
+        if(fits){
+          chunks.forEach(function(c){ lines.push(c); });
+          return;
+        }
+      }
+      idxs.forEach(function(i){ lines.push([i]); });
+    }
+
+    systems().forEach(function(group){
+      var idxs = group.map(function(num){
+        return SCORE.measures.findIndex(function(m){ return m.n === num; });
+      }).filter(function(i){ return i >= 0; });
+      if(!idxs.length){ return; }
+      if(span(idxs) <= budget){ lines.push(idxs); } else { pack(idxs); }
+    });
+    return lines;
+  }
+
+  /* The drawio transcription records where the original broke its lines;
+     anything imported or hand-written does not, so fall back to even groups. */
+  function systems(){
+    if(SCORE.systems && SCORE.systems.length){ return SCORE.systems; }
+    var out = [], group = [];
+    SCORE.measures.forEach(function(m){
+      group.push(m.n);
+      if(group.length === 4){ out.push(group); group = []; }
+    });
+    if(group.length){ out.push(group); }
+    return out;
+  }
+
+  /* ---------- build one VexFlow note ---------- */
+  var DUR = DURATIONS.of;
+
+  /* A rest is positioned by the key it is given, so it has to be told where
+     the middle of *this* clef is, or a bass line's rests float above it. */
+  var REST_SEAT = {treble: {w:"d/5", other:"b/4"}, bass: {w:"f/3", other:"d/3"}};
+
+  function buildNote(spec, clef){
+    var pitch = spec[0], dur = DUR[spec[1]] || DUR.q;
+    var rest = pitch === "R";
+    var seat = REST_SEAT[clef] || REST_SEAT.treble;
+    var keys = rest ? [spec[1] === "w" ? seat.w : seat.other] : [pitch];
+    var n = new VF.StaveNote({
+      keys: keys,
+      duration: dur.vf + (rest ? "r" : ""),
+      autoStem: !rest,
+      clef: clef
+    });
+    if(dur.dot){ VF.Dot.buildAndAttach([n], {all:true}); }
+    return n;
+  }
+
+  /* Consecutive triplet notes belong to one bracket. */
+  function tuplets(specs, notes){
+    var out = [], run = [];
+    function flush(){
+      if(run.length > 1){ out.push(new VF.Tuplet(run.slice())); }
+      run = [];
+    }
+    specs.forEach(function(spec, i){
+      if((DUR[spec[1]] || {}).triplet){ run.push(notes[i]); } else { flush(); }
+    });
+    flush();
+    return out;
+  }
+
+  /* ---------- which clef does this line want? ----------
+     Decided once per printed line, from its lowest note, and drawn again at
+     the head of every line -- a piano piece that dips under middle C gets the
+     bass clef where it needs it without the clef flickering note by note.
+     The flute answers "treble" whatever it is handed. */
+  function clefFor(idxs){
+    var lowest = null;
+    idxs.forEach(function(i){
+      SCORE.measures[i].notes.forEach(function(spec){
+        if(spec[0] === "R"){ return; }
+        if(lowest === null || Note.midi(spec[0]) < Note.midi(lowest)){
+          lowest = spec[0];
+        }
+      });
+    });
+    return lowest ? inst.clefFor(lowest) : "treble";
+  }
+
+  /* ---------- turn SVG markup into nodes we can append ---------- */
+  var SVGNS = "http://www.w3.org/2000/svg";
+
+  function svgFragment(markup){
+    var doc = new DOMParser().parseFromString(
+      '<svg xmlns="' + SVGNS + '">' + markup + '</svg>', "image/svg+xml");
+    var frag = document.createDocumentFragment();
+    var root = doc.documentElement;
+    while(root.firstChild){ frag.appendChild(root.firstChild); }
+    return frag;
+  }
+
+  /* ---------- render ---------- */
+  function draw(){
+    sheet.innerHTML = "";
+    var avail = Math.max(320, sheet.clientWidth - 20);
+    var width = avail / scale;
+    var lines = layout(width);
+
+    lines.forEach(function(idxs, li){
+      var host = document.createElement("div");
+      sheet.appendChild(host);
+
+      var clef = clefFor(idxs);
+
+      var H = systemHeight();
+      var renderer = new VF.Renderer(host, VF.Renderer.Backends.SVG);
+      renderer.resize(width, H);
+      var ctx = renderer.getContext();
+      ctx.setFont("system-ui", 11);
+
+      /* draw in score units, let the browser scale the finished SVG */
+      var svg = ctx.svg;
+      svg.setAttribute("viewBox", "0 0 " + width + " " + H);
+      svg.setAttribute("preserveAspectRatio", "xMinYMin meet");
+      svg.style.width = Math.round(width * scale) + "px";
+      svg.style.height = Math.round(H * scale) + "px";
+
+      /* share out the width in proportion to each measure's appetite */
+      var head = 90;                                 // clef + key signature
+      var edge = fingers ? chart.width / 2 + 4 : 0;   // room for the last diagram
+      var weights = idxs.map(function(i){ return measureWeight(SCORE.measures[i]); });
+      var sum = weights.reduce(function(a,b){ return a+b; }, 0);
+      var free = width - PAD_LEFT - PAD_RIGHT - head - edge;
+
+      var x = PAD_LEFT, all = [], staves = [], charts = "";
+
+      idxs.forEach(function(mi, k){
+        var m = SCORE.measures[mi];
+        var w = free * (weights[k] / sum) + (k === 0 ? head : 0);
+        var stave = new VF.Stave(x, STAVE_Y, w);
+        if(k === 0){
+          stave.setMeasure(m.n);
+          stave.addClef(clef).addKeySignature(SCORE.key);
+        }
+        if(m.repeat === "begin"){ stave.setBegBarType(VF.Barline.type.REPEAT_BEGIN); }
+        if(m.bar === "double"){ stave.setEndBarType(VF.Barline.type.DOUBLE); }
+        stave.setContext(ctx).draw();
+        staves.push(stave);
+        x += w;
+
+        var notes = m.notes.map(function(spec){ return buildNote(spec, clef); });
+        var voice = new VF.Voice({numBeats:TOP, beatValue:BOTTOM});
+        /* soft: triplets do not add up to a whole number of ticks, and a
+           hand-written or imported bar may not either -- draw it regardless */
+        voice.setMode(VF.Voice.Mode.SOFT);
+        voice.addTickables(notes);
+        VF.Accidental.applyAccidentals([voice], SCORE.key);
+        new VF.Formatter().joinVoices([voice]).format([voice], w - 32);
+        voice.draw(ctx, stave);
+
+        var beams = m.beams.map(function(g){
+          return new VF.Beam(g.map(function(i){ return notes[i]; }));
+        });
+        beams.forEach(function(b){ b.setContext(ctx).draw(); });
+        tuplets(m.notes, notes).forEach(function(t){ t.setContext(ctx).draw(); });
+
+        m.ties.forEach(function(t){
+          new VF.StaveTie({
+            firstNote: notes[t[0]], lastNote: notes[t[1]],
+            firstIndexes: [0], lastIndexes: [0]
+          }).setContext(ctx).draw();
+        });
+        m.slurs.forEach(function(s){
+          new VF.Curve(notes[s[0]], notes[s[1]], {cps:[{x:0,y:14},{x:0,y:14}]})
+            .setContext(ctx).draw();
+        });
+
+        all.push({n:m.n, notes:notes});
+
+        if(fingers){
+          var xs = [];
+          m.notes.forEach(function(spec, i){
+            if(spec[0] === "R"){ return; }
+            var n = notes[i];
+            xs.push({p:spec[0],
+                     x:(n.getNoteHeadBeginX() + n.getNoteHeadEndX()) / 2});
+          });
+
+          /* shrink the diagrams if two notes sit closer than one is wide */
+          var gap = Infinity;
+          for(var j = 1; j < xs.length; j++){ gap = Math.min(gap, xs[j].x - xs[j-1].x); }
+          var k = Math.max(0.62, Math.min(1, (gap - 2) / chart.width));
+
+          xs.forEach(function(e){
+            var half = chart.width * k / 2;
+            var cx = Math.min(Math.max(e.x, half), width - half);
+            charts += chart.at(e.p, cx, BAND_TOP, k);
+          });
+        }
+      });
+
+      if(charts){ svg.appendChild(svgFragment(charts)); }
+
+      /* slurs that hop over a barline, when both bars share this line */
+      SCORE.crossSlurs.forEach(function(cs){
+        var a = all.find(function(e){ return e.n === cs[0][0]; });
+        var b = all.find(function(e){ return e.n === cs[1][0]; });
+        if(a && b){
+          new VF.Curve(a.notes[cs[0][1]], b.notes[cs[1][1]],
+                       {cps:[{x:0,y:16},{x:0,y:16}]}).setContext(ctx).draw();
+        }
+      });
+    });
+  }
+
+  function setScale(s){
+    scale = Math.min(2, Math.max(0.6, s));
+    draw();
+  }
+
+  document.getElementById("zoomIn").addEventListener("click", function(){ setScale(scale*1.15); });
+  document.getElementById("zoomOut").addEventListener("click", function(){ setScale(scale/1.15); });
+  document.getElementById("fingers").addEventListener("click", function(){
+    fingers = !fingers;
+    this.setAttribute("aria-pressed", String(fingers));
+    draw();
+  });
+  document.getElementById("dense").addEventListener("click", function(){
+    denser = !denser;
+    this.setAttribute("aria-pressed", String(denser));
+    draw();
+  });
+
+  var t;
+  window.addEventListener("resize", function(){
+    clearTimeout(t);
+    t = setTimeout(draw, 120);
+  });
+
+  /* The engraving itself carries no words -- clefs and accidentals are glyphs,
+     the diagrams are shapes -- so a language change leaves the expensive
+     draw() alone and only rewrites the lines above it.
+     A theme change needs even less: the stave inherits its colour from the
+     stylesheet and the diagrams name their colours as var(), so both follow
+     on their own.
+     An instrument change is the one that costs: different chart, different
+     size, possibly a different clef, so the sheet is engraved again. */
+  function switchInstrument(next){
+    inst = next;
+    chart = inst.chart;
+    renderHeader();
+    draw();
+  }
+
+  var topbar = document.getElementById("topbar");
+  Instruments.mountPicker(topbar);
+  I18n.mountSwitcher(topbar);
+  Theme.mountPicker(topbar);
+  I18n.onChange(renderHeader);
+  Instruments.onChange(switchInstrument);
+  I18n.apply(document);      /* the markup ships English; fill in the rest */
+  renderHeader();
+
+  draw();
+})();
+</script>
+</body>
+</html>
