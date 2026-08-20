@@ -14,6 +14,13 @@
  * What this still does NOT check: that the machine emits any sound. The graph
  * can be perfect into a muted device. That needs a speaker and an ear, once.
  *
+ * And it cannot catch a score that is musically wrong. Expectation and app are
+ * read from the same songs.js, so corrupting a note there moves both sides
+ * together and this stays green -- which is how the first attempt at a negative
+ * test for it failed. To see this instrument fail, break the app: freq() off by
+ * a semitone reports 100.00 cents on every note, and a clock running 20% fast
+ * reports the piece running 1160 ms short over 14 beats.
+ *
  *     node tools/check_audio.js
  *
  * Needs playwright and a browser, which the app itself does not -- this is a
@@ -33,8 +40,12 @@ var playwright;
 try {
   playwright = require("playwright");
 } catch (e) {
+  /* -g rather than -D on purpose: this repo has no package.json, so there is
+     nowhere for a dev dependency to be recorded, and require() here resolves
+     against a global install or a parent node_modules. Whether the repo should
+     gain a package.json is a bigger question than this one check. */
   console.log("skipped: playwright is not installed");
-  console.log("  npm i -D playwright && npx playwright install chromium");
+  console.log("  npm i -g playwright && npx playwright install chromium");
   process.exit(0);
 }
 
@@ -128,7 +139,12 @@ async function run(base){
   await page.goto(base + "/game.html");
   await page.waitForSelector("#play");
   await page.selectOption("#song", SONG.id).catch(function(){});
-  await page.click("#sound");                       /* the toggle starts off */
+  /* Read the toggle rather than assuming it starts off. If that default ever
+     flips, clicking blind would turn sound off and the run would fail with
+     "scheduled 0 notes" -- true, and pointing at the wrong thing. */
+  if(await page.getAttribute("#sound", "aria-pressed") === "false"){
+    await page.click("#sound");
+  }
   await page.fill("#bpm", String(BPM));
   await page.evaluate(function(){
     document.getElementById("bpm").dispatchEvent(new Event("input", {bubbles:true}));
