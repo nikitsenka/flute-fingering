@@ -93,6 +93,7 @@ window.I18N_STRINGS.zh = {
   "game.add.title": "载入 MusicXML (.mxl)",
   "game.tempo": "速度",
   "game.sound": "🔊 声音",
+  "game.setup": "⚙ 设置",
   "game.bar": "小节",
   "game.staffCard": "五线谱",
   "game.drop": "✕ 移除",

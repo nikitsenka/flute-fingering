@@ -113,6 +113,7 @@ window.I18N_STRINGS.en = {
   "game.add.title": "Load MusicXML (.mxl)",
   "game.tempo": "tempo",
   "game.sound": "🔊 Sound",
+  "game.setup": "⚙ Setup",
   "game.bar": "bar",
   "game.staffCard": "on the staff",
   "game.drop": "✕ Remove",

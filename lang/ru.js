@@ -103,6 +103,7 @@ window.I18N_STRINGS.ru = {
   "game.add.title": "Загрузить MusicXML (.mxl)",
   "game.tempo": "темп",
   "game.sound": "🔊 Звук",
+  "game.setup": "⚙ Настройки",
   "game.bar": "такт",
   "game.staffCard": "на нотном стане",
   "game.drop": "✕ Убрать",

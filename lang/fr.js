@@ -96,6 +96,7 @@ window.I18N_STRINGS.fr = {
   "game.add.title": "Charger un MusicXML (.mxl)",
   "game.tempo": "tempo",
   "game.sound": "🔊 Son",
+  "game.setup": "⚙ Réglages",
   "game.bar": "mesure",
   "game.staffCard": "sur la portée",
   "game.drop": "✕ Retirer",
