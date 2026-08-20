@@ -103,6 +103,8 @@ window.I18N_STRINGS.fr = {
   "game.drop.title": "Retirer le morceau chargé",
   "game.done": "Terminé ! ↺ pour recommencer",
   "game.failed": "Ça n'a pas marché : {why}",
+  "game.added.missing": {one: "Ajouté, mais {n} note n'a pas de doigté : {notes}",
+                         other: "Ajouté, mais {n} notes n'ont pas de doigtés : {notes}"},
   "game.added.problems": {one: "Ajouté, mais {n} mesure est douteuse",
                           other: "Ajouté, mais {n} mesures sont douteuses"},
   "game.footer": "Espace — départ et pause, <b>R</b> — au début.",

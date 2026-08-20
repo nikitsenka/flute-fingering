@@ -103,6 +103,7 @@ window.I18N_STRINGS.ja = {
   "game.drop.title": "読み込んだ曲を削除する",
   "game.done": "おしまい！ ↺ でもう一度",
   "game.failed": "できませんでした：{why}",
+  "game.added.missing": {other: "追加しました。ただし {n} 音に運指がありません：{notes}"},
   "game.added.problems": {other: "追加しました。ただし {n} 小節があやしいです"},
   "game.footer": "スペース — 開始と一時停止、<b>R</b> — 最初から。",
   "game.sheetLink": "図つきの全音符",

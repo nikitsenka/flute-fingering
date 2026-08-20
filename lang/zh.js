@@ -100,6 +100,7 @@ window.I18N_STRINGS.zh = {
   "game.drop.title": "移除已载入的曲目",
   "game.done": "完成！↺ 再来一次",
   "game.failed": "没有成功：{why}",
+  "game.added.missing": {other: "已添加，但有 {n} 个音符没有指法：{notes}"},
   "game.added.problems": {other: "已添加，但有 {n} 个小节存疑"},
   "game.footer": "空格键 — 开始和暂停，<b>R</b> — 从头开始。",
   "game.sheetLink": "全部音符及其图示",
