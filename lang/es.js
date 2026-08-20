@@ -103,6 +103,8 @@ window.I18N_STRINGS.es = {
   "game.drop.title": "Quitar la pieza cargada",
   "game.done": "¡Listo! ↺ para repetir",
   "game.failed": "No salió: {why}",
+  "game.added.missing": {one: "Añadida, pero {n} nota no tiene digitación: {notes}",
+                         other: "Añadida, pero {n} notas no tienen digitación: {notes}"},
   "game.added.problems": {one: "Añadida, pero {n} compás es dudoso",
                           other: "Añadida, pero {n} compases son dudosos"},
   "game.footer": "Espacio — empezar y pausar, <b>R</b> — desde el principio.",

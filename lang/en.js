@@ -120,6 +120,8 @@ window.I18N_STRINGS.en = {
   "game.drop.title": "Remove the loaded piece",
   "game.done": "Done! ↺ to play it again",
   "game.failed": "Didn't work: {why}",
+  "game.added.missing": {one: "Added, but {n} note has no fingering: {notes}",
+                         other: "Added, but {n} notes have no fingering: {notes}"},
   "game.added.problems": {one: "Added, but {n} bar looks off",
                           other: "Added, but {n} bars look off"},
   "game.footer": "Space — start and pause, <b>R</b> — back to the beginning.",

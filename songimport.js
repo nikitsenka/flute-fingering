@@ -193,7 +193,8 @@
         var key = id + "|" + staff + "|" + voice;
         var line = lines[key] || (lines[key] = {
           part:id, partName:partName(doc, id), staff:staff, voice:voice,
-          notes:0, rests:0, sum:0, lo:null, hi:null, playable:0, chords:0
+          notes:0, rests:0, sum:0, lo:null, hi:null, playable:0, chords:0,
+          used:{}
         });
         if(note.querySelector("chord")){ line.chords++; continue; }
         if(note.querySelector("rest")){ line.rests++; continue; }
@@ -205,6 +206,7 @@
         line.sum += m;
         if(line.lo === null || m < line.lo){ line.lo = m; }
         if(line.hi === null || m > line.hi){ line.hi = m; }
+        line.used[pitch] = (line.used[pitch] || 0) + 1;
         if(playableOn(pitch)){ line.playable++; }
       }
     }
@@ -353,10 +355,27 @@
     return best;
   }
 
+  /* What share of a line has a fingering once it is moved by `octaves`.
+     analyze() can only answer for the octave the file was written in, but the
+     reader picks a shift afterwards and the answer moves with it: a line that
+     is unplayable as written may be entirely playable an octave down, and a
+     line that reads fine can be shifted into a register the instrument does
+     not have. Counting by note rather than by distinct pitch, so one stray
+     note in a hundred does not read the same as half the tune. */
+  function playableShare(line, octaves){
+    if(!line || !line.notes){ return 0; }
+    var ok = 0;
+    for(var pitch in line.used){
+      if(playableOn(shiftPitch(pitch, octaves || 0))){ ok += line.used[pitch]; }
+    }
+    return ok / line.notes;
+  }
+
   global.SongImport = {
     read: read,
     analyze: analyze,
     convert: convert,
-    suggestOctave: suggestOctave
+    suggestOctave: suggestOctave,
+    playableShare: playableShare
   };
 })(window);

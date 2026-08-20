@@ -996,7 +996,8 @@
       facts.textContent = I18n.plural("import.facts", line.notes, {
         lo: pitchName(line.lo),
         hi: pitchName(line.hi),
-        pct: Math.round(line.share * 100),
+        /* at the shift this line will open with, not at the written octave */
+        pct: Math.round(SongImport.playableShare(line, SongImport.suggestOctave(line)) * 100),
         /* the inflected form -- "on the flute", "на флейте", "au piano" */
         instrument: I18n.t(inst.copy.onKey)
       });
@@ -1032,14 +1033,18 @@
 
   function describe(line){
     var shift = +shiftSel.value;
+    /* the share has to be recomputed for the shift on show -- line.share is the
+       answer for the octave the file was written in, and the reader is looking
+       at a different one */
+    var share = SongImport.playableShare(line, shift);
     var notes = [I18n.t("import.range", {
       lo: pitchName(line.lo + shift * 12),
       hi: pitchName(line.hi + shift * 12)
     })];
-    if(line.share < 0.9){ notes.push(I18n.t("import.outOfRange")); }
+    if(share < 0.9){ notes.push(I18n.t("import.outOfRange")); }
     if(line.chords){ notes.push(I18n.plural("import.chords", line.chords)); }
     warnBox.textContent = notes.join(" ");
-    warnBox.hidden = notes.length === 1 && line.share >= 0.9;
+    warnBox.hidden = notes.length === 1 && share >= 0.9;
   }
 
   /* one entry per (part, staff, voice); songimport.js leaves the wording to us */
@@ -1083,7 +1088,15 @@
     refreshPicker(id);
     loadSong(song);
 
-    if(result.report.problems.length){
+    /* convert() knows exactly which pitches have no fingering at the chosen
+       shift, and until now said so to nobody: the card simply went blank on
+       those notes mid-play, with nothing to explain it. */
+    if(result.report.missing.length){
+      setBanner("game.added.missing",
+                {notes: result.report.missing.map(function(p){ return Note.compact(p); }).join(" ")},
+                result.report.missing.length);
+      drawFrame(head, null);
+    } else if(result.report.problems.length){
       setBanner("game.added.problems", null, result.report.problems.length);
       drawFrame(head, null);
     }

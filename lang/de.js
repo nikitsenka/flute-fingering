@@ -103,6 +103,8 @@ window.I18N_STRINGS.de = {
   "game.drop.title": "Das geladene Stück entfernen",
   "game.done": "Fertig! ↺ für noch einmal",
   "game.failed": "Hat nicht geklappt: {why}",
+  "game.added.missing": {one: "Hinzugefügt, aber für {n} Note gibt es keine Griffe: {notes}",
+                         other: "Hinzugefügt, aber für {n} Noten gibt es keine Griffe: {notes}"},
   "game.added.problems": {one: "Hinzugefügt, aber {n} Takt ist fraglich",
                           other: "Hinzugefügt, aber {n} Takte sind fraglich"},
   "game.footer": "Leertaste — Start und Pause, <b>R</b> — von vorn.",
