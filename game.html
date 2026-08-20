@@ -371,7 +371,7 @@
   var CH_MAX = 400;             // the height the lane was drawn for
   var CH_MIN = 240;             // below this it stops reading as a lane
   var HIT_GAP = 100;            // hit line to the bottom edge of the canvas
-  var TAIL = 120;               // viewport left under the lane for the grip
+  var TAIL = 120;               // strip of the grip left visible under the lane
 
   var CH = CH_MAX;              // drawing height in css px, set in fit()
   var HIT = CH - HIT_GAP;       // y of the "play now" line, set in fit()
@@ -388,15 +388,29 @@
     return y;
   }
 
+  /* Everything between the top of the stage and the top of the panel that is
+     not the canvas: the stage's own border and padding, and the panel's margin.
+     Measured rather than assumed, so a theme that changes --bw or the padding
+     cannot quietly eat the strip TAIL is there to reserve. */
+  function stageChrome(){
+    var stage = canvas.parentNode;
+    var panel = document.querySelector(".panel");
+    var sr = stage.getBoundingClientRect();
+    var chrome = sr.height - canvas.getBoundingClientRect().height;
+    if(panel){ chrome += Math.max(0, panel.getBoundingClientRect().top - sr.bottom); }
+    return chrome;
+  }
+
   function fit(){
     var box = canvas.parentNode.getBoundingClientRect();
     cw = Math.max(320, Math.floor(box.width) - 16);
 
-    /* The lane takes what the viewport has left under the controls, less a
-       strip for the fingering below it. On a desktop that is more than the
-       lane was drawn for, so it stays at CH_MAX and nothing changes there; on
-       a phone it shrinks instead of pushing the grip off the screen. */
-    var room = window.innerHeight - stageTop() - TAIL;
+    /* The lane takes what the viewport has left under the controls, less the
+       stage's own chrome and the strip of grip we want to stay visible. On a
+       desktop that is more than the lane was drawn for, so it stays at CH_MAX
+       and nothing changes there; on a phone it shrinks instead of pushing the
+       grip off the screen. */
+    var room = window.innerHeight - stageTop() - stageChrome() - TAIL;
     CH = Math.max(CH_MIN, Math.min(CH_MAX, Math.round(room)));
 
     /* HIT and ppb are derived from CH, so they have to be recomputed with it.
@@ -735,11 +749,18 @@
     }
   });
 
-  window.addEventListener("resize", function(){
+  /* CH is derived from how much room the header leaves, and the header changes
+     without any resize: translated control labels rewrap .bar, and the title is
+     built from the piece and instrument names. Anything that re-renders the
+     header has to refit, or the lane keeps a height the viewport no longer has
+     and the grip drops back under the fold. */
+  function refit(){
     fit();
     var cur = currentNote();
     drawFrame(head, cur.now);
-  });
+  }
+
+  window.addEventListener("resize", refit);
 
   /* ---------- loading a piece ---------- */
   function loadSong(s){
@@ -777,6 +798,7 @@
     lastPitch = null;
 
     renderTitle();
+    fit();                          /* the title carries the piece name; restart() redraws */
     document.getElementById("sheetLink").href =
       "notes.html?song=" + encodeURIComponent(song.id);
 
@@ -1020,8 +1042,7 @@
     renderTitle();
     refreshPicker(songSel.value);
 
-    var cur = currentNote();
-    drawFrame(head, cur.now);        /* note tiles, lane labels and the banner */
+    refit();                         /* note tiles, lane labels and the banner */
 
     if(dialog.open && pending){      /* the picker keeps its choice */
       var picked = linesBox.querySelector("input:checked");
@@ -1055,6 +1076,7 @@
     staffCache = {};
     shown = null;
     renderTitle();
+    refit();
     var cur = currentNote();
     showNote(cur.now, cur.next);
     if(dialog.open && pending){ describe(chosen()); }
