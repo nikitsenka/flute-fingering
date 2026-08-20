@@ -59,10 +59,6 @@
   @media (max-width:779px){
     .panel .grip{order:-1}
   }
-  @media (max-width:479px){
-    /* the standing instructions have been read by the second visit */
-    .sub{display:none}
-  }
   .btn{
     font-family:inherit;
     font-size:15px;
@@ -709,11 +705,23 @@
     refit();
   }
 
+  /* The standing instructions cost 46px, which a phone does not have to spare —
+     but hiding them by viewport width would withhold the explanation from a
+     first-time player on exactly the screens where the mechanic is hardest to
+     guess from the layout. Pressing Play is the moment they have been read, so
+     that is when the room is reclaimed. Narrow screens only; a desktop has the
+     height already and should not have the page jump under the reader. */
+  var subLine = document.querySelector(".sub");
+  var NARROW = "(max-width:479px)";
+
   function start(){
     if(playing){ return; }
     setBanner(null);
     if(head >= END){ head = START; sounded = -1; }
     playing = true;
+    if(subLine && !subLine.hidden && window.matchMedia(NARROW).matches){
+      subLine.hidden = true;     /* setPlayLabel() refits, which picks this up */
+    }
     setPlayLabel();              /* before the clock starts: refit is synchronous */
     last = performance.now();
     if(audio && audio.state === "suspended"){ audio.resume(); }
