@@ -96,6 +96,7 @@ window.I18N_STRINGS.es = {
   "game.add.title": "Cargar MusicXML (.mxl)",
   "game.tempo": "tempo",
   "game.sound": "🔊 Sonido",
+  "game.setup": "⚙ Ajustes",
   "game.bar": "compás",
   "game.staffCard": "en el pentagrama",
   "game.drop": "✕ Quitar",

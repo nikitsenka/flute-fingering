@@ -42,6 +42,27 @@
     flex-wrap:wrap;
     margin-bottom:14px;
   }
+  /* Wide enough and everything is on show, as before. On a phone the six
+     wrapped rows of controls cost more height than the lane itself, and all
+     but Play, Restart and tempo are set once and not touched again while
+     playing — so they fold behind one button. */
+  .setupToggle{display:none}
+  @media (max-width:599px){
+    .setupToggle{display:inline-block}
+    .setup{display:none}
+    .setup.open{display:flex}
+  }
+  /* 780px is where the two panel cards stop fitting side by side and .panel
+     wraps. Below it the staff card would land on top and push the fingering off
+     the screen — and the fingering is the half a player reads while playing, so
+     it goes first. Above it the row is intact and the order is left alone. */
+  @media (max-width:779px){
+    .panel .grip{order:-1}
+  }
+  @media (max-width:479px){
+    /* the standing instructions have been read by the second visit */
+    .sub{display:none}
+  }
   .btn{
     font-family:inherit;
     font-size:15px;
@@ -218,10 +239,14 @@
   <div class="bar">
     <button class="btn go" id="play" type="button">▶ Play</button>
     <button class="btn" id="restart" type="button" data-i18n="game.restart">↺ Restart</button>
+    <label class="tempo"><span data-i18n="game.tempo">tempo</span> <input id="bpm" type="range" min="30" max="120" step="2" value="60"><b id="bpmVal">60</b></label>
+    <button class="btn setupToggle" id="setupToggle" type="button" aria-expanded="false" aria-controls="setup" data-i18n="game.setup">⚙ Setup</button>
+  </div>
+
+  <div class="bar setup" id="setup">
     <label class="tempo"><span data-i18n="game.piece">piece</span> <select id="song"></select></label>
     <button class="btn" id="add" type="button" data-i18n="game.add" data-i18n-title="game.add.title" title="Load MusicXML (.mxl)">＋ From file</button>
     <input type="file" id="file" accept=".mxl,.musicxml,.xml" hidden>
-    <label class="tempo"><span data-i18n="game.tempo">tempo</span> <input id="bpm" type="range" min="30" max="120" step="2" value="60"><b id="bpmVal">60</b></label>
     <button class="btn" id="sound" type="button" aria-pressed="false" data-i18n="game.sound">🔊 Sound</button>
     <span id="topbar"></span>
   </div>
@@ -1092,6 +1117,17 @@
     showNote(cur.now, cur.next);
     if(dialog.open && pending){ describe(chosen()); }
   }
+
+  /* Folding the setup row in or out changes the height of the header, which is
+     what CH is derived from — so this refits for the same reason relabel() and
+     setPlayLabel() do. */
+  var setupRow = document.getElementById("setup");
+  var setupToggle = document.getElementById("setupToggle");
+  setupToggle.addEventListener("click", function(){
+    var open = setupRow.classList.toggle("open");
+    setupToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    refit();
+  });
 
   var topbar = document.getElementById("topbar");
   Instruments.mountPicker(topbar);
