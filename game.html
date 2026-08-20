@@ -422,6 +422,32 @@
     return chrome;
   }
 
+  /* How tall the viewport is, measured so that it does not move under the
+     reader mid-piece.
+
+     window.innerHeight is the obvious answer and the wrong one: on iOS Safari
+     it grows when the address bar slides away on scroll, which fires a resize,
+     which refits — so the lane would rescale, and HIT and ppb with it, while
+     the player is reading notes off it.
+
+     svh is the *small* viewport height: the height with the browser chrome at
+     its largest, so it does not change when that chrome retracts. Sizing to it
+     gives up the strip the address bar would have freed, and buys a lane that
+     holds still. dvh would track the chrome and reintroduce exactly the jump
+     this avoids.
+
+     The probe is how svh gets read from script — there is no innerHeight
+     equivalent for it. Where svh is unsupported the probe measures 0 and we
+     fall back to innerHeight, which is the behaviour this replaces. */
+  var vhProbe = document.createElement("div");
+  vhProbe.style.cssText = "position:absolute;top:0;left:0;width:0;height:100svh;" +
+                          "visibility:hidden;pointer-events:none";
+  document.body.appendChild(vhProbe);
+
+  function viewportHeight(){
+    return vhProbe.offsetHeight || window.innerHeight;
+  }
+
   function fit(){
     var box = canvas.parentNode.getBoundingClientRect();
     cw = Math.max(320, Math.floor(box.width) - 16);
@@ -431,7 +457,7 @@
        desktop that is more than the lane was drawn for, so it stays at CH_MAX
        and nothing changes there; on a phone it shrinks instead of pushing the
        grip off the screen. */
-    var room = window.innerHeight - stageTop() - stageChrome() - TAIL;
+    var room = viewportHeight() - stageTop() - stageChrome() - TAIL;
     CH = Math.max(CH_MIN, Math.min(CH_MAX, Math.round(room)));
 
     /* HIT and ppb are derived from CH, so they have to be recomputed with it.
