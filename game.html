@@ -673,12 +673,23 @@
     requestAnimationFrame(tick);
   }
 
+  /* The label is part of the header: .bar wraps, and the two words are not the
+     same width in every locale -- Japanese runs 再生 -> 一時停止, which is enough
+     to add a row at some widths, and German runs the other way. Setting the
+     label without refitting would leave the lane sized for a header that has
+     moved, which is the staleness refit() exists to prevent. fit() also clears
+     the canvas, so the redraw inside refit() is what keeps the frame on screen. */
+  function setPlayLabel(){
+    playBtn.textContent = I18n.t(playing ? "game.pause" : "game.play");
+    refit();
+  }
+
   function start(){
     if(playing){ return; }
     setBanner(null);
     if(head >= END){ head = START; sounded = -1; }
     playing = true;
-    playBtn.textContent = I18n.t("game.pause");
+    setPlayLabel();              /* before the clock starts: refit is synchronous */
     last = performance.now();
     if(audio && audio.state === "suspended"){ audio.resume(); }
     requestAnimationFrame(tick);
@@ -686,7 +697,7 @@
 
   function stop(){
     playing = false;
-    playBtn.textContent = I18n.t("game.play");
+    setPlayLabel();
   }
 
   function restart(){
