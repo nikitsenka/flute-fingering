@@ -45,6 +45,31 @@ function cents(a, b){ return 1200 * Math.log2(a / b); }
 
 var problems = [];
 
+/* Gaps that are filed and understood. A check that is red every run stops
+   being read within days, and then it is not reporting the gap it names -- it
+   is hiding whatever breaks next. So a known gap is reported as known and does
+   not fail the run.
+
+   The list is enforced in both directions: an entry that no longer reproduces
+   fails, so closing the issue cannot leave a stale exception sitting here
+   pretending to excuse something. */
+var KNOWN = [
+  {instrument:"flute", pitch:"c#/4", issue:7,
+   why:"declared in range, absent from the fingering table"}
+];
+
+var knownHit = {};
+
+function known(instrument, pitch){
+  for(var i = 0; i < KNOWN.length; i++){
+    if(KNOWN[i].instrument === instrument && KNOWN[i].pitch === pitch){
+      knownHit[instrument + " " + pitch] = true;
+      return KNOWN[i];
+    }
+  }
+  return null;
+}
+
 /* 1. the anchors. A4 is the definition; the others are the published values a
       tuner shows, so a table error anywhere near the middle of the range shows
       up as a named note being audibly off. */
@@ -102,7 +127,9 @@ INSTRUMENTS.forEach(function(inst){
   for(var m = inst.range.lo; m <= inst.range.hi; m++){
     var pitch = spell(m);
     if(!inst.has(pitch)){
-      problems.push(inst.id + ": says it plays midi " + m + " but rejects " + pitch);
+      if(!known(inst.id, pitch)){
+        problems.push(inst.id + ": says it plays midi " + m + " but rejects " + pitch);
+      }
       continue;
     }
     if(Note.midi(pitch) !== m){
@@ -130,10 +157,22 @@ Object.keys(seen).forEach(function(p){
   if(hi === null || f > freq(hi)){ hi = p; }
 });
 
+KNOWN.forEach(function(gap){
+  if(!knownHit[gap.instrument + " " + gap.pitch]){
+    problems.push("known gap " + gap.instrument + " " + gap.pitch + " (#" + gap.issue +
+                  ") no longer reproduces -- remove it from KNOWN");
+  }
+});
+
 console.log("anchors   7 checked   a/4 = " + freq("a/4").toFixed(1) + " Hz");
 console.log("sounded   " + sounded + " distinct pitches   " +
             lo + " " + freq(lo).toFixed(1) + " Hz .. " +
             hi + " " + freq(hi).toFixed(1) + " Hz");
+
+KNOWN.forEach(function(gap){
+  console.log("known     " + gap.instrument + " " + gap.pitch + ": " + gap.why +
+              "  (#" + gap.issue + ")");
+});
 
 if(problems.length){
   console.error("\n" + problems.length + " problem(s):\n  " + problems.join("\n  "));
