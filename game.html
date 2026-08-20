@@ -1049,7 +1049,9 @@
       pct: Math.round(share * 100),
       instrument: I18n.t(inst.copy.onKey)
     }));
-    if(share < 0.9){ notes.push(I18n.t("import.outOfRange")); }
+    /* "some of the notes" understates it when the answer is none, and the
+       0% above has already said the whole of it */
+    if(share > 0 && share < 0.9){ notes.push(I18n.t("import.outOfRange")); }
     if(line.chords){ notes.push(I18n.plural("import.chords", line.chords)); }
     warnBox.textContent = notes.join(" ");
     warnBox.hidden = false;      /* it always says something now */
