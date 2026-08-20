@@ -996,8 +996,9 @@
       facts.textContent = I18n.plural("import.facts", line.notes, {
         lo: pitchName(line.lo),
         hi: pitchName(line.hi),
-        /* at the shift this line will open with, not at the written octave */
-        pct: Math.round(SongImport.playableShare(line, SongImport.suggestOctave(line)) * 100),
+        /* the written octave, matching lo/hi beside it: this line describes
+           the file. What the chosen shift gives is the panel's job. */
+        pct: Math.round(line.share * 100),
         /* the inflected form -- "on the flute", "на флейте", "au piano" */
         instrument: I18n.t(inst.copy.onKey)
       });
@@ -1041,10 +1042,17 @@
       lo: pitchName(line.lo + shift * 12),
       hi: pitchName(line.hi + shift * 12)
     })];
+    /* the number, not just the verdict: one note in eight out of reach and
+       nothing in reach at all read identically otherwise, and the reader is
+       choosing the shift on exactly that difference */
+    notes.push(I18n.t("import.playableAfter", {
+      pct: Math.round(share * 100),
+      instrument: I18n.t(inst.copy.onKey)
+    }));
     if(share < 0.9){ notes.push(I18n.t("import.outOfRange")); }
     if(line.chords){ notes.push(I18n.plural("import.chords", line.chords)); }
     warnBox.textContent = notes.join(" ");
-    warnBox.hidden = notes.length === 1 && share >= 0.9;
+    warnBox.hidden = false;      /* it always says something now */
   }
 
   /* one entry per (part, staff, voice); songimport.js leaves the wording to us */

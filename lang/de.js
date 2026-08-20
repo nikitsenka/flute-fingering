@@ -124,6 +124,7 @@ window.I18N_STRINGS.de = {
                    other: "{n} Noten · {lo}–{hi} · {pct}% {instrument} spielbar"},
   "import.best": " — sieht nach der Hauptmelodie aus",
   "import.range": "Umfang nach der Verschiebung: {lo}–{hi}.",
+  "import.playableAfter": "{pct}% der Noten lassen sich {instrument} spielen.",
   "import.outOfRange": "Ein Teil der Noten liegt außerhalb des Tonumfangs — sie fallen trotzdem, " +
                        "aber das Schemafenster bleibt bei ihnen leer.",
   "import.chords": {one: "In dieser Stimme steht ein Akkord ({n}) — nur die oberste Note bleibt.",

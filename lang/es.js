@@ -124,6 +124,7 @@ window.I18N_STRINGS.es = {
                    other: "{n} notas · {lo}–{hi} · {pct}% se toca {instrument}"},
   "import.best": " — parece la melodía principal",
   "import.range": "Registro tras el desplazamiento: {lo}–{hi}.",
+  "import.playableAfter": "El {pct}% de las notas se puede tocar {instrument}.",
   "import.outOfRange": "Algunas notas quedan fuera del registro del instrumento — seguirán cayendo, " +
                        "pero el recuadro del esquema quedará vacío para ellas.",
   "import.chords": {one: "Esta línea tiene un acorde ({n}) — se queda la nota superior.",

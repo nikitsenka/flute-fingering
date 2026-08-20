@@ -118,6 +118,7 @@ window.I18N_STRINGS.zh = {
   "import.facts": {other: "{n} 个音 · {lo}–{hi} · {pct}% 可{instrument}演奏"},
   "import.best": " — 看起来是主旋律",
   "import.range": "移调后的音域：{lo}–{hi}。",
+  "import.playableAfter": "{pct}% 的音符可以{instrument}演奏。",
   "import.outOfRange": "有些音超出了乐器的音域 — 它们照样会落下，" +
                        "但图示窗口对这些音会是空的。",
   "import.chords": {other: "这一行里有和弦（{n}），只保留最高的那个音。"},
