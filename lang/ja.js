@@ -121,6 +121,7 @@ window.I18N_STRINGS.ja = {
   "import.facts": {other: "{n} 音 · {lo}–{hi} · {instrument}演奏できるのは {pct}%"},
   "import.best": " — 主旋律のようです",
   "import.range": "移調後の音域：{lo}–{hi}。",
+  "import.playableAfter": "音符の {pct}% が{instrument}演奏できます。",
   "import.outOfRange": "楽器の音域から外れる音符があります。落ちてはきますが、" +
                        "その音では図の窓が空のままになります。",
   "import.chords": {other: "この段には和音（{n}）があります。いちばん上の音だけが残ります。"},

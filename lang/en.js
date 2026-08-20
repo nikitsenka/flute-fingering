@@ -142,6 +142,7 @@ window.I18N_STRINGS.en = {
                    other: "{n} notes · {lo}–{hi} · {pct}% playable on {instrument}"},
   "import.best": " — looks like the main melody",
   "import.range": "Range after the shift: {lo}–{hi}.",
+  "import.playableAfter": "{pct}% of the notes play on {instrument}.",
   "import.outOfRange": "Some of the notes fall outside the instrument's range — they will " +
                        "still fall down the lanes, but the chart panel stays empty for them.",
   "import.chords": {one: "This line has a chord ({n}) — only the top note is kept.",

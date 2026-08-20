@@ -124,6 +124,7 @@ window.I18N_STRINGS.fr = {
                    other: "{n} notes · {lo}–{hi} · {pct}% jouable {instrument}"},
   "import.best": " — ressemble à la mélodie principale",
   "import.range": "Étendue après le décalage : {lo}–{hi}.",
+  "import.playableAfter": "{pct}% des notes se jouent {instrument}.",
   "import.outOfRange": "Une partie des notes sort de l'étendue de l'instrument — elles tomberont " +
                        "quand même, mais la fenêtre du schéma restera vide pour elles.",
   "import.chords": {one: "Cette ligne contient un accord ({n}) — seule la note du haut est gardée.",
