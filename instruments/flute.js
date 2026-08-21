@@ -15,7 +15,14 @@
  *   rh1..3   right hand index/middle/ring
  *   trill1/2 the two trill keys      (unused by this piece)
  *   eb       right pinky E-flat key
+ *   cSharp   right pinky C-sharp key on the foot joint
  *   lowC     right pinky C key on the foot joint (only low C uses it)
+ *
+ * The foot joint is drawn as three separate keys because that is what the
+ * player's little finger sees. On the instrument the C touchpiece closes the
+ * C-sharp hole as well, so low C really holds both; the chart shows only lowC
+ * for it, which is the simplification this file was built with and is left
+ * alone here rather than changed on the way past.
  */
 (function(global){
   "use strict";
@@ -36,6 +43,10 @@
      is the one key in the diagram that nothing here switches on. */
   var FINGERINGS = {
     "c/4":  ["thumbB", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "lowC"],
+    /* Low C-sharp: the six fingers of low D, with the little finger moved off
+       the E-flat key onto the C-sharp key of the foot joint. The range has
+       always claimed this note; only the chart was missing it. */
+    "c#/4": ["thumbB", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "cSharp"],
     "d/4":  ["thumbB", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3"],
     "d#/4": ["thumbB", "lh1", "lh2", "lh3", "rh1", "rh2", "rh3", "eb"],
     "e/4":  ["thumbB", "lh1", "lh2", "lh3", "rh1", "rh2", "eb"],
@@ -120,9 +131,13 @@
       rrect(20.3, 42, 3, 5, 1.5, on.trill1) +
       rrect(20.3, 51, 3, 5, 1.5, on.trill2) +
       /* right pinky */
-      rrect(12.4, 62.5, 5.2, 9.4, 2.4, on.eb) +
-      /* foot joint, with the low C key */
-      rrect(12.4, 72.6, 5.2, 6, 2, on.lowC) +
+      rrect(12.4, 62.5, 5.2, 7.4, 2.4, on.eb) +
+      /* foot joint: C-sharp then C, in the order the little finger meets them.
+         The three share the space the E-flat key and low C used to have, so the
+         box stays 24x80 and every drawing that sizes itself from it is left
+         where it was. */
+      rrect(12.4, 70.7, 5.2, 3.7, 1.8, on.cSharp) +
+      rrect(12.4, 75.1, 5.2, 3.5, 1.8, on.lowC) +
       '<path d="M10 79.4h10" style="fill:none"/>' +
       '</g>';
   }
