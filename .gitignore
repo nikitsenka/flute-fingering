@@ -7,3 +7,6 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# npm
+node_modules/
