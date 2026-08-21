@@ -54,8 +54,10 @@ var problems = [];
    fails, so closing the issue cannot leave a stale exception sitting here
    pretending to excuse something. */
 var KNOWN = [
-  {instrument:"flute", pitch:"c#/4", issue:7,
-   why:"declared in range, absent from the fingering table"}
+  /* Empty is the state to keep it in. An entry here is a gap that has been
+     filed, not one that has been accepted -- and the check below fails if an
+     entry stops reproducing, so closing the issue and forgetting this list is
+     not a way out. flute c#/4 (#7) lived here until the fingering was added. */
 ];
 
 var knownHit = {};
