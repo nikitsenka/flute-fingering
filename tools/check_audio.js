@@ -23,9 +23,10 @@
  *
  *     node tools/check_audio.js
  *
- * Needs playwright and a browser, which the app itself does not -- this is a
- * developer check, not a build step. Without them it skips rather than fails,
- * so it can sit in the same run as the dependency-free checks.
+ * Needs playwright and a browser, which the app itself does not -- it is a
+ * devDependency in package.json and nothing the served site ever loads. Without
+ * them installed this skips rather than fails, so it can sit in the same run as
+ * the checks that need nothing.
  */
 "use strict";
 
@@ -40,12 +41,8 @@ var playwright;
 try {
   playwright = require("playwright");
 } catch (e) {
-  /* -g rather than -D on purpose: this repo has no package.json, so there is
-     nowhere for a dev dependency to be recorded, and require() here resolves
-     against a global install or a parent node_modules. Whether the repo should
-     gain a package.json is a bigger question than this one check. */
   console.log("skipped: playwright is not installed");
-  console.log("  npm i -g playwright && npx playwright install chromium");
+  console.log("  npm install && npx playwright install chromium");
   process.exit(0);
 }
 
