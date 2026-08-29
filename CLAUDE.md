@@ -34,6 +34,10 @@ the description does not match what it committed.
   overwritten a second later — that is how the mixed commit happened.
 - Reads the commit message against the commit's contents. That is the
   specific thing that was missed.
+- Checks the deployed page, not only the commit: the owner asked for that on
+  2026-08-29 ("бета проверяй на проде"). Fetch nikitsenka.github.io past the
+  cache and confirm the change is actually being served. That catches the thing
+  a green local check cannot — work that never left the machine.
 - Reports and asks for the fix; picks up the work itself only if the owner
   says so.
 - If it ever needs to run something by hand, uses its own git worktree
