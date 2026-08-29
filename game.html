@@ -243,7 +243,7 @@
     <label class="tempo"><span data-i18n="game.piece">piece</span> <select id="song"></select></label>
     <button class="btn" id="add" type="button" data-i18n="game.add" data-i18n-title="game.add.title" title="Load MusicXML (.mxl)">＋ From file</button>
     <input type="file" id="file" accept=".mxl,.musicxml,.xml" hidden>
-    <button class="btn" id="sound" type="button" aria-pressed="false" data-i18n="game.sound">🔊 Sound</button>
+    <button class="btn" id="sound" type="button" aria-pressed="true" data-i18n="game.sound">🔊 Sound</button>
     <span id="topbar"></span>
   </div>
 
@@ -660,12 +660,26 @@
     gripSvg.innerHTML = chart.horizontal(pitch);
   }
 
-  /* ---------- sound ---------- */
-  var audio = null, soundOn = false, sounded = -1;
+  /* ---------- sound ----------
+     On to start with: a trainer that plays the line is the point, and a reader
+     who wants quiet has the button right there. The markup says so too --
+     aria-pressed is what the button is drawn from, and what check_audio.js
+     reads before deciding whether to click. */
+  var audio = null, soundOn = true, sounded = -1;
+
+  /* A context built before the browser has seen a gesture is handed over
+     suspended, and the first note falls in a frame callback rather than in the
+     click, which is too late to ask. So every way into sound -- the button and
+     Play -- comes through here, where it is still inside the gesture. */
+  function ensureAudio(){
+    if(!audio){ audio = new (window.AudioContext || window.webkitAudioContext)(); }
+    if(audio.state === "suspended"){ audio.resume(); }
+    return audio;
+  }
 
   function beep(pitch, seconds){
     if(!soundOn){ return; }
-    if(!audio){ audio = new (window.AudioContext || window.webkitAudioContext)(); }
+    ensureAudio();
     var t0 = audio.currentTime;
     var osc = audio.createOscillator();
     var gain = audio.createGain();
@@ -750,7 +764,7 @@
     }
     setPlayLabel();              /* before the clock starts: refit is synchronous */
     last = performance.now();
-    if(audio && audio.state === "suspended"){ audio.resume(); }
+    if(soundOn){ ensureAudio(); }
     requestAnimationFrame(tick);
   }
 
@@ -777,8 +791,7 @@
   document.getElementById("sound").addEventListener("click", function(){
     soundOn = !soundOn;
     this.setAttribute("aria-pressed", String(soundOn));
-    if(soundOn && !audio){ audio = new (window.AudioContext || window.webkitAudioContext)(); }
-    if(soundOn && audio.state === "suspended"){ audio.resume(); }
+    if(soundOn){ ensureAudio(); }
   });
 
   /* seek, labelled by bar number */
