@@ -86,9 +86,24 @@ for _top in STAFF_TOPS:
         NOTES.append((70 + _i * 40, _top - 4 * STEP + _i * (STEP / 2.0)))
 
 
-def page_content():
+def stroked_staff_lines():
+    """The same five lines drawn as strokes, which is what Finale emits.
+
+    A reader that only looks at filled rectangles finds no staff on a page like
+    this and says so honestly -- which is exactly what happened to the first
+    real file we were given, so it is worth a sample of its own.
+    """
+    out = ["0 G", "%.2f w" % 0.8]
+    for top in STAFF_TOPS:
+        for i in range(5):
+            y = top - i * STEP
+            out.append("%.2f %.2f m %.2f %.2f l S" % (STAFF_X0, y, STAFF_X1, y))
+    return out
+
+
+def page_content(stroked=False):
     parts = ["0 g"]
-    parts += staff_lines()
+    parts += stroked_staff_lines() if stroked else staff_lines()
     for x, y in NOTES:
         parts.append(notehead(x, y))
         parts.append(stem(x, y))
@@ -143,8 +158,8 @@ def stream_obj(dict_body, data, compress):
     return head + data + b"\nendstream"
 
 
-def engraved(compress):
-    content = page_content()
+def engraved(compress, stroked=False):
+    content = page_content(stroked)
     return build({
         1: b"<< /Type /Catalog /Pages 2 0 R >>",
         2: b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -322,6 +337,7 @@ def main():
         "sample-plain.pdf": engraved(False),
         "sample-scan.pdf": scan(),
         "sample-ascii85.pdf": ascii85_page(),
+        "sample-stroked.pdf": engraved(True, stroked=True),
         "sample-stamped.pdf": stamped(),
         "sample-locked.pdf": locked(),
     }

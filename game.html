@@ -1228,9 +1228,14 @@
        front of the reader now than as a surprise on the first bar. */
     if(line.printed){
       notes.push(I18n.t("import.pdf.lengths"));
-      notes.push(I18n.t("import.pdf.clef"));
+      notes.push(I18n.t("import.pdf.accidentals"));
       if(line.printed.staves > 1){
         notes.push(I18n.t("import.pdf.staves", {n: line.printed.staves}));
+      }
+      /* a piano part is the common case, and "some of your notes are not here"
+         is the one thing a reader must not find out by playing it */
+      if(line.printed.skipped){
+        notes.push(I18n.t("import.pdf.bass", {n: line.printed.skipped}));
       }
     }
     if(line.trouble && line.trouble.verdict === "wide"){

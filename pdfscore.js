@@ -17,16 +17,32 @@
  *
  *   pitch      read, from the head's position on the staff
  *   order      read, left to right within a staff, staff by staff down the page
+ *   clef       read, from where the clef glyph sits: a treble clef is drawn on
+ *              the G line and a bass clef on the F line, whatever font it is
+ *              in, so the baseline says which it is without naming a glyph
  *   length     NOT read -- every note comes in as a quarter
- *   clef       NOT read -- treble is assumed
- *   key        NOT read -- accidentals at the head are not looked for either
+ *   key        NOT read -- accidentals beside a head are not looked for either
  *
  * That is a fingering trainer's half of the problem: the pitches and their
  * order are what a player practises against, and an even beat is a usable
  * default for that. Rhythm is where this has to grow next, and the shape of
  * the growth is known -- a filled head against a hollow one, a stem, a beam,
- * a flag -- which is why heads are found by geometry rather than by pattern
- * matching on one engraver's output.
+ * a flag.
+ *
+ * Engravers draw the same page two ways, and both are here. A staff line is a
+ * thin filled rectangle or a thin stroke; a notehead is a small filled curve or
+ * a glyph of the music font. The second pair is what real files use -- Finale
+ * wrote the first one we were given with stroked staff lines and heads out of
+ * an embedded subset font -- and nothing in the file names those glyphs, so the
+ * head is found by how it behaves: it is the glyph that appears far more often
+ * than any other and at more heights and more places along the staff. A rest or
+ * a clef appears at one height; a dot follows the notes but is rarer than they
+ * are.
+ *
+ * A piano score is read from its treble staves only. The bass staff of a piano
+ * system is not the melody, and reading both would interleave two parts into
+ * one nonsense line -- so the clef decides, and the number of staves left out
+ * is reported rather than hidden.
  *
  * A scan is refused rather than guessed at. There are no coordinates inside a
  * photograph, so nothing here can apply to it; saying so is more use than
@@ -116,9 +132,19 @@
      staff; a run that is not five -- a bracket, a rule under a title, a table
      -- is left alone rather than made to fit. */
   function staffLines(page){
-    return page.fills.filter(function(f){
-      return f.rect && f.h <= 2.5 && f.w >= page.width * 0.25;
-    }).sort(function(a, b){ return b.y - a.y; });      /* top of the page first */
+    var wide = page.width * 0.25;
+    var out = page.fills.filter(function(f){
+      return f.rect && f.h <= 2.5 && f.w >= wide;
+    }).concat(page.strokes.filter(function(f){
+      return f.h <= 0.5 && f.w >= wide;
+    }));
+
+    out.sort(function(a, b){ return b.y - a.y; });     /* top of the page first */
+
+    /* a line drawn twice, or a stroke redrawn as a fill, is still one line */
+    return out.filter(function(f, i){
+      return i === 0 || Math.abs(centre(out[i - 1]) - centre(f)) > 0.5;
+    });
   }
 
   function staves(page){
@@ -152,6 +178,111 @@
   }
 
   function centre(f){ return f.y + f.h / 2; }
+
+  /* ---------- which clef ----------
+     A clef is drawn from the line it names: the treble curls round the G line,
+     two half-spaces up from the bottom, and the bass sits its dots either side
+     of the F line, six up. That is true of every music font, so the leftmost
+     glyph on the staff answers the question by where it sits, and nothing has
+     to know what the glyph is called -- which matters, because a subset font
+     carries its noteheads under codes that mean nothing outside that file. */
+  var TREBLE_BOTTOM = 4 * 7 + 2;               /* e/4 on the bottom line */
+  var BASS_BOTTOM = 2 * 7 + 4;                 /* g/2 */
+
+  function clefOf(staff, glyphs){
+    var here = glyphs.filter(function(g){
+      return g.y <= staff.top + staff.step * 3 && g.y >= staff.bottom - staff.step * 3;
+    }).sort(function(a, b){ return a.x - b.x; });
+    if(!here.length){ return "treble"; }
+
+    var half = (here[0].y - staff.bottom) / (staff.step / 2);
+    if(Math.abs(half - 6) < 1){ return "bass"; }
+    if(Math.abs(half - 2) < 1){ return "treble"; }
+    return "treble";                           /* unreadable: say so upstream */
+  }
+
+  /* ---------- the music font ----------
+     The one an engraver embeds as a subset, and the one carrying most of the
+     glyphs on the page. A page whose only font is the label under the title has
+     none of this, which is how the drawn-by-hand samples fall through to the
+     geometry below. */
+  function musicFont(page){
+    var counts = {};
+    page.texts.forEach(function(t){ counts[t.font] = (counts[t.font] || 0) + t.length; });
+
+    var best = null;
+    (page.fonts || []).forEach(function(f){
+      if(!f.embedded || !f.subset){ return; }
+      var n = counts[f.key] || 0;
+      if(n >= 20 && (!best || n > counts[best.key])){ best = f; }
+    });
+    return best;
+  }
+
+  function codeOf(text){
+    var n = 0;
+    for(var i = 0; i < text.codes.length; i++){ n = (n << 8) | text.codes.charCodeAt(i); }
+    return n;
+  }
+
+  /* ---------- the notehead among the glyphs ----------
+     Nothing in the file says which glyph is a notehead, so it is found by how
+     it behaves. Heads are the commonest thing on a page of music, they appear
+     at many heights because that is what a melody is, and they are spread along
+     the staff. A clef or a time signature sits at one height and one place; a
+     rest at one height; an augmentation dot moves with the notes but there are
+     fewer of them. A second head shape -- hollow against filled -- is taken too
+     when it is nearly as common as the first, and only then. */
+  function headCodes(page, font, list){
+    var seen = {};
+
+    page.texts.forEach(function(t){
+      if(t.font !== font.key){ return; }
+      var st = staffFor(t.y, list);
+      if(st === null){ return; }
+      var code = codeOf(t);
+      var s = seen[code] || (seen[code] = {n:0, heights:{}, xs:{}});
+      s.n++;
+      s.heights[Math.round((t.y - list[st].bottom) / (list[st].step / 2))] = true;
+      s.xs[Math.round(t.x)] = true;
+    });
+
+    var ranked = Object.keys(seen).map(function(code){
+      var s = seen[code];
+      return {code:+code, n:s.n, heights:Object.keys(s.heights).length, xs:Object.keys(s.xs).length};
+    }).sort(function(a, b){ return b.n - a.n; });
+
+    var first = ranked[0];
+    if(!first || first.n < 8 || first.heights < 4 || first.xs < 4){ return []; }
+
+    return ranked.filter(function(r){
+      return r === first || (r.n >= first.n * 0.5 && r.n >= 6 && r.heights >= 4);
+    }).map(function(r){ return r.code; });
+  }
+
+  function staffFor(y, list){
+    var best = null, bestGap = Infinity;
+    list.forEach(function(st, i){
+      var gap = y > st.top ? y - st.top : (y < st.bottom ? st.bottom - y : 0);
+      if(gap < bestGap){ bestGap = gap; best = i; }
+    });
+    if(best === null || bestGap > list[best].step * 3.5){ return null; }
+    return best;
+  }
+
+  function glyphHeads(page, font, list){
+    var codes = headCodes(page, font, list);
+    if(!codes.length){ return []; }
+
+    var out = [];
+    page.texts.forEach(function(t){
+      if(t.font !== font.key || codes.indexOf(codeOf(t)) < 0){ return; }
+      var st = staffFor(t.y, list);
+      if(st === null){ return; }
+      out.push({staff:st, x:t.x, y:t.y});
+    });
+    return out.sort(function(a, b){ return a.staff - b.staff || a.x - b.x; });
+  }
 
   /* ---------- noteheads ----------
      A head is drawn as curves, roughly one staff space tall and a little wider
@@ -192,36 +323,69 @@
   }
 
   /* ---------- where a head sits, as a pitch ----------
-     Half a staff space is one step of the scale, counted from the bottom line.
-     With a treble clef that line is E4; nothing here reads the clef, so that
-     is an assumption and it is reported as one. */
+     Half a staff space is one step of the scale, counted from the bottom line,
+     and which note that line is depends on the clef read above. */
   var LETTERS = ["c", "d", "e", "f", "g", "a", "b"];
-  var BOTTOM_LINE = 4 * 7 + 2;                 /* e/4, counted in scale steps */
 
   function pitchAt(head, staff){
     var steps = Math.round((head.y - staff.bottom) / (staff.step / 2));
-    var n = BOTTOM_LINE + steps;
+    var n = (staff.clef === "bass" ? BASS_BOTTOM : TREBLE_BOTTOM) + steps;
     return LETTERS[((n % 7) + 7) % 7] + "/" + Math.floor(n / 7);
   }
 
   /* ---------- what is on the page ----------
-     One PDF is one line: the staves are read top to bottom, page after page,
-     as a single part. A piano score would be read as one long line that way,
-     which is wrong -- so the count of staves goes into the report, where the
-     reader can see that eight staves became one line before they play it. */
+     Staves are read top to bottom, page after page, and joined into one line.
+     Two things are dropped on the way and both are counted for the report: the
+     bass staff of a piano system, which is not the melody and would interleave
+     a second part into the line, and the lower notes of a chord, since a
+     trainer plays one note at a time -- the same rule songimport.js applies to
+     a chord in MusicXML. */
   function recognise(doc){
     var notes = [];
-    var staffCount = 0;
+    var staffCount = 0, usedStaves = 0, skipped = 0, chords = 0, fromGlyphs = false;
 
     doc.pages.forEach(function(page){
       var list = staves(page);
+      if(!list.length){ return; }
       staffCount += list.length;
-      heads(page, list).forEach(function(h){
-        notes.push(pitchAt(h, list[h.staff]));
+
+      var font = musicFont(page);
+      var glyphs = font ? page.texts.filter(function(t){ return t.font === font.key; }) : [];
+      list.forEach(function(st){ st.clef = font ? clefOf(st, glyphs) : "treble"; });
+
+      var found = font ? glyphHeads(page, font, list) : [];
+      if(found.length){ fromGlyphs = true; } else { found = heads(page, list); }
+
+      /* one part, so the treble staves are the piece; a page with no treble
+         staff at all is read as it is rather than refused */
+      var wanted = list.some(function(st){ return st.clef === "treble"; }) ? "treble" : null;
+      usedStaves += wanted ? list.filter(function(st){ return st.clef === wanted; }).length
+                           : list.length;
+
+      var lastX = null, lastStaff = null;
+      found.forEach(function(h){
+        var st = list[h.staff];
+        if(wanted && st.clef !== wanted){ skipped++; return; }
+
+        /* heads stacked at one moment are a chord: keep the top note. They
+           arrive sorted by x, so "the same moment" is a gap of nearly nothing,
+           and the highest is whichever is further up the page. */
+        if(lastStaff === h.staff && lastX !== null && Math.abs(h.x - lastX) < st.step * 0.6){
+          chords++;
+          var prev = notes[notes.length - 1];
+          var here = pitchAt(h, st);
+          if(global.Note.midi(here) > global.Note.midi(prev)){ notes[notes.length - 1] = here; }
+          return;
+        }
+        notes.push(pitchAt(h, st));
+        lastX = h.x;
+        lastStaff = h.staff;
       });
+
     });
 
-    return {notes:notes, staves:staffCount};
+    return {notes:notes, staves:staffCount, used:usedStaves, skipped:skipped,
+            chords:chords, glyphs:fromGlyphs};
   }
 
   function analyze(doc){
@@ -234,9 +398,9 @@
       part: "pdf", partName: null, staff: "1", voice: "1",
       notes: 0, rests: 0, sum: 0, lo: null, hi: null, playable: 0, chords: 0,
       used: {},
-      /* what the page cannot tell us, carried so the dialog can say it before
-         the reader presses Add rather than after */
-      printed: {staves:seen.staves, clef:"treble", lengths:false}
+      /* what the page could not tell us, carried so the dialog can say it
+         before the reader presses Add rather than after */
+      printed: {staves:seen.used, skipped:seen.skipped, lengths:false}
     };
 
     seen.notes.forEach(function(pitch){
@@ -249,6 +413,9 @@
       if(playableOn(pitch)){ line.playable++; }
     });
 
+    /* the picker already knows how to say this one: it is the same fact
+       songimport.js reports when a MusicXML part has chords in it */
+    line.chords = seen.chords;
     line.share = line.playable / line.notes;
     line.average = line.sum / line.notes;
     line.rank = 1;
@@ -297,9 +464,15 @@
     measures[measures.length - 1].bar = "double";
 
     var problems = ["lengths are not read from the page: every note came in as a quarter",
-                    "the clef was taken to be treble, and accidentals were not read"];
-    if(doc.seen.staves > 1){
-      problems.push(doc.seen.staves + " staves were read as one line, top to bottom");
+                    "sharps and flats beside a head were not read"];
+    if(doc.seen.used > 1){
+      problems.push(doc.seen.used + " staves were read as one line, top to bottom");
+    }
+    if(doc.seen.skipped){
+      problems.push(doc.seen.skipped + " note(s) on staves in another clef were left out");
+    }
+    if(doc.seen.chords){
+      problems.push(doc.seen.chords + " head(s) stacked into chords: only the top note was kept");
     }
 
     var list = Object.keys(used).sort(function(a, b){
@@ -310,7 +483,8 @@
     return {
       score: {key:options.key || "C", time:time, measures:measures, systems:[], crossSlurs:[]},
       report: {bars:measures.length, pitches:list, missing:missing, problems:problems,
-               bpm:0, staves:doc.seen.staves}
+               bpm:0, staves:doc.seen.staves, skipped:doc.seen.skipped,
+               chords:doc.seen.chords, glyphs:doc.seen.glyphs}
     };
   }
 

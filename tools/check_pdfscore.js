@@ -12,13 +12,19 @@
  * A recogniser that loses a head, finds one twice, or is off by a step reports
  * a different scale here, not a slightly worse number.
  *
- * What this cannot show: that a real engraving reads. MuseScore and LilyPond
- * draw a page in ways nothing here has met -- heads as font glyphs rather than
- * curves, staff lines as strokes rather than rectangles, several parts down the
- * page. Until a real file is tried, this says the recogniser works on the shape
- * it was told about, which is not the same claim.
+ * One sample draws its staff lines as strokes instead of filled rectangles,
+ * because that is what a real engraver emits and a reader that looks only at
+ * fills finds no staff at all on such a page.
+ *
+ * What this still cannot show is that a real engraving reads: these pages have
+ * no music font, so the glyph path -- which is the one real files take -- is
+ * not exercised by them at all. Put a file where the check can see it and it
+ * will run against that too, printing what it read rather than asserting it,
+ * since nobody here knows what is in your PDF:
  *
  *     node tools/check_pdfscore.js
+ *     PDF=~/score.pdf node tools/check_pdfscore.js
+ *     tools/samples/real/*.pdf                    (same thing, no environment)
  */
 "use strict";
 
@@ -72,7 +78,10 @@ function bytesOf(name){ return new Uint8Array(fs.readFileSync(path.join(SAMPLES,
 
 /* every sample that holds the engraved page, however it is compressed: the
    recogniser must not care which filter the file used */
-var ENGRAVED = ["sample-engraved.pdf", "sample-plain.pdf", "sample-ascii85.pdf"];
+var ENGRAVED = ["sample-engraved.pdf", "sample-plain.pdf", "sample-ascii85.pdf",
+                /* the same page with its staff lines stroked rather than filled,
+                   which is how a real engraver draws them */
+                "sample-stroked.pdf"];
 
 function readsAsScale(name){
   return PdfScore.bytes(bytesOf(name), inflate).then(function(doc){
@@ -112,6 +121,44 @@ function readsAsScale(name){
   });
 }
 
+/* A real engraving, if one has been put where the check can find it. Nothing
+   is asserted about its contents -- we do not know them -- but the difference
+   between "reads a page of music" and "reads the page we drew ourselves" is
+   worth printing, and a crash on a real file is a failure. Point PDF= at a
+   file, or drop one in tools/samples/real/.
+     PDF=~/score.pdf node tools/check_pdfscore.js */
+function realFiles(){
+  var out = [];
+  if(process.env.PDF){ out.push(process.env.PDF); }
+  var dir = path.join(SAMPLES, "real");
+  if(fs.existsSync(dir)){
+    fs.readdirSync(dir).filter(function(n){ return /\.pdf$/i.test(n); })
+      .forEach(function(n){ out.push(path.join(dir, n)); });
+  }
+  return out;
+}
+
+function readsSomething(file){
+  var bytes = new Uint8Array(fs.readFileSync(file));
+  return PdfScore.bytes(bytes, inflate).then(function(doc){
+    var line = PdfScore.analyze(doc)[0];
+    var seen = doc.seen;
+    console.log(path.basename(file));
+    ok("it found staves", seen.staves > 0, seen.staves + " staves");
+    ok("it found notes", line && line.notes > 0, seen.notes.length + " heads");
+    ok("the heads came from the music font", seen.glyphs, seen.glyphs ? "glyphs" : "filled curves");
+    ok("the notes are inside a sane range", !line || (line.lo >= 21 && line.hi <= 108),
+       line ? line.lo + ".." + line.hi : "no line");
+    if(line){
+      console.log("      first notes: " + seen.notes.slice(0, 16).join(" "));
+      console.log("      " + seen.staves + " staves, " + seen.skipped + " note(s) in another clef left out, " +
+                  seen.chords + " chord head(s) dropped");
+    }
+    var made = PdfScore.convert(doc, line, {octave:0});
+    ok("it converts to bars", made.score.measures.length > 0, made.score.measures.length + " bars");
+  });
+}
+
 function refuses(name, why){
   return PdfScore.bytes(bytesOf(name), inflate).then(function(){
     ok(name + " is refused (" + why + ")", false, "it was accepted");
@@ -128,6 +175,10 @@ ENGRAVED.forEach(function(name){
 });
 
 console.log("");
+realFiles().forEach(function(file){
+  run = run.then(function(){ return readsSomething(file); });
+});
+
 run.then(function(){
   return refuses("sample-scan.pdf", "a photograph has no coordinates in it");
 }).then(function(){
@@ -140,8 +191,9 @@ run.then(function(){
     process.exit(1);
   }
   console.log("pdfscore: ok -- the drawn scale reads back as a scale, three staves,\n" +
-              "          in every compression the samples use; a scan and a protected\n" +
-              "          file are refused rather than guessed at");
+              "          in every compression the samples use and with the staff lines\n" +
+              "          stroked as well as filled; a scan and a protected file are\n" +
+              "          refused rather than guessed at");
 }).catch(function(err){
   console.error(String(err && err.stack || err));
   process.exit(1);
