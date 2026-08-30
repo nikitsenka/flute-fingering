@@ -250,7 +250,7 @@
   <div class="bar setup" id="setup">
     <label class="tempo"><span data-i18n="game.piece">piece</span> <select id="song"></select></label>
     <button class="btn" id="add" type="button" data-i18n="game.add" data-i18n-title="game.add.title" title="Load MusicXML (.mxl)">＋ From file</button>
-    <input type="file" id="file" accept=".mxl,.musicxml,.xml,audio/*,.wav,.mp3,.m4a,.aac,.ogg,.oga,.opus,.flac,.webm" hidden>
+    <input type="file" id="file" accept=".mxl,.musicxml,.xml,audio/*,.wav,.mp3,.m4a,.aac,.ogg,.oga,.opus,.flac,.webm,application/pdf,.pdf" hidden>
     <button class="btn" id="sound" type="button" aria-pressed="true" data-i18n="game.sound">🔊 Sound</button>
     <span id="topbar"></span>
   </div>
@@ -321,6 +321,8 @@
 <script src="songimport.js"></script>
 <script src="audiopitch.js"></script>
 <script src="audioimport.js"></script>
+<script src="pdfread.js"></script>
+<script src="pdfscore.js"></script>
 <script>
 (function(){
   "use strict";
@@ -1005,6 +1007,15 @@
                /\.(wav|mp3|m4a|aac|ogg|oga|opus|flac|webm|aiff?)$/i.test(file.name);
       },
       module: function(){ return window.AudioImport; }
+    },
+    {
+      id: "pdf",
+      hint: "import.pdf.hint",
+      extensions: /\.pdf$/i,
+      claims: function(file){
+        return /^application\/pdf$/.test(file.type || "") || /\.pdf$/i.test(file.name);
+      },
+      module: function(){ return window.PdfScore; }
     }
   ];
 
@@ -1080,7 +1091,7 @@
 
     var kind = importerFor(file);
     if(!kind){
-      setBanner("game.failed", {why: I18n.t("import.err.notAudio")});
+      setBanner("game.failed", {why: I18n.t("import.err.unknown")});
       drawFrame(head, null);
       return;
     }
@@ -1088,6 +1099,7 @@
     /* Listening to a recording takes seconds, not milliseconds, and it happens
        before anything appears on screen. Say so, or the page looks broken. */
     if(kind.id === "audio"){ setBanner("game.listening"); drawFrame(head, null); }
+    if(kind.id === "pdf"){ setBanner("game.reading"); drawFrame(head, null); }
 
     var module = kind.module();
     Promise.resolve()
@@ -1211,6 +1223,16 @@
        line too wide for the instrument, or one that keeps leaping twelve
        semitones. Either way it belongs beside the octave selector, which is the
        control the reader would otherwise reach for to "fix" it. */
+    /* A page says less than a recording does, and what it does not say is the
+       part worth knowing: the pitches are read, the lengths are not. Better in
+       front of the reader now than as a surprise on the first bar. */
+    if(line.printed){
+      notes.push(I18n.t("import.pdf.lengths"));
+      notes.push(I18n.t("import.pdf.clef"));
+      if(line.printed.staves > 1){
+        notes.push(I18n.t("import.pdf.staves", {n: line.printed.staves}));
+      }
+    }
     if(line.trouble && line.trouble.verdict === "wide"){
       notes.push(I18n.t("import.audio.wide", {spread:line.trouble.spread, span:line.trouble.span}));
     } else if(line.trouble && line.trouble.verdict === "jumpy"){
@@ -1225,6 +1247,7 @@
   /* one entry per (part, staff, voice); songimport.js leaves the wording to us,
      and a recording has no part to name -- it is simply what was heard */
   function lineLabel(line){
+    if(line.part === "pdf"){ return I18n.t("import.printed"); }
     if(!line.partName){ return I18n.t("import.recording"); }
     return line.partName +
       (line.staff !== "1" ? I18n.t("import.staff", {n: line.staff}) : "") +
