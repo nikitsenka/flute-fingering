@@ -47,7 +47,16 @@
     return out;
   }
 
-  function fail(message){ return new Error("pdf: " + message); }
+  /* A failure that a reader will see needs a translation key on it: the page
+     shows err.i18n when there is one and this English line when there is not,
+     and "pdf: the file is protected" in a Russian interface is the app talking
+     to itself. The key is optional because most of these are malformed-file
+     details nobody outside this file can act on. */
+  function fail(message, key){
+    var e = new Error("pdf: " + message);
+    if(key){ e.i18n = key; }
+    return e;
+  }
 
   /* ---------- object syntax ---------- */
 
@@ -555,13 +564,17 @@
     if(!(bytes instanceof Uint8Array)){ bytes = new Uint8Array(bytes); }
     var doc = new Doc(bytes, inflate);
     if(doc.s.indexOf("%PDF-") !== 0 && doc.s.indexOf("%PDF-") > 1024){
-      return Promise.reject(fail("this is not a PDF"));
+      return Promise.reject(fail("this is not a PDF", "import.err.pdfNot"));
     }
-    if(!Object.keys(doc.at).length){ return Promise.reject(fail("no objects in the file")); }
-    if(encrypted(doc)){ return Promise.reject(fail("the file is protected")); }
+    if(!Object.keys(doc.at).length){
+      return Promise.reject(fail("no objects in the file", "import.err.pdfEmpty"));
+    }
+    if(encrypted(doc)){ return Promise.reject(fail("the file is protected", "import.err.pdfLocked")); }
     return expandObjectStreams(doc).then(function(){
       doc.pages = collectPages(doc);
-      if(!doc.pages.length){ return Promise.reject(fail("no pages in the file")); }
+      if(!doc.pages.length){
+        return Promise.reject(fail("no pages in the file", "import.err.pdfEmpty"));
+      }
       return doc;
     });
   }

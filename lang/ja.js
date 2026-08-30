@@ -157,6 +157,8 @@ window.I18N_STRINGS.ja = {
   "import.pdf.clef": "音部記号はト音記号と見なし、臨時記号は読み取っていません。",
   "import.pdf.staves": "{n} 段を上から順に 1 つの譜として読み取りました。",
   "import.err.pdfScan": "この PDF はスキャン画像です",
+  "import.err.pdfLocked": "この PDF はパスワードで保護されています",
+  "import.err.pdfNot": "このファイルは PDF ではありません",
   "import.err.pdfEmpty": "このページには描かれているものが少なすぎます",
   "import.err.pdfNoStaves": "ページに五線が見つかりません",
   "import.err.pdfInflate": "このブラウザーは圧縮された PDF を展開できません",

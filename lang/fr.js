@@ -161,6 +161,8 @@ window.I18N_STRINGS.fr = {
   "import.pdf.clef": "La clé est supposée être celle de sol, et les altérations ne sont pas lues.",
   "import.pdf.staves": "{n} portées ont été lues comme une seule ligne, de haut en bas.",
   "import.err.pdfScan": "ce PDF est un scan, pas une gravure",
+  "import.err.pdfLocked": "ce PDF est protégé par un mot de passe",
+  "import.err.pdfNot": "ce fichier n'est pas un PDF",
   "import.err.pdfEmpty": "il y a trop peu de choses dessinées sur cette page",
   "import.err.pdfNoStaves": "aucune portée n'a été trouvée sur la page",
   "import.err.pdfInflate": "ce navigateur ne sait pas décompresser un PDF compressé",

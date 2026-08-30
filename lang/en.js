@@ -179,6 +179,8 @@ window.I18N_STRINGS.en = {
   "import.pdf.clef": "The clef is taken to be treble, and accidentals are not read.",
   "import.pdf.staves": "{n} staves were read as one line, top to bottom.",
   "import.err.pdfScan": "this PDF is a scan, not an engraving",
+  "import.err.pdfLocked": "this PDF is password-protected",
+  "import.err.pdfNot": "this file is not a PDF",
   "import.err.pdfEmpty": "there is too little drawn on this page",
   "import.err.pdfNoStaves": "no staff lines were found on the page",
   "import.err.pdfInflate": "this browser cannot unpack a compressed PDF",

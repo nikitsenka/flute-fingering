@@ -161,6 +161,8 @@ window.I18N_STRINGS.de = {
   "import.pdf.clef": "Als Schlüssel wird der Violinschlüssel angenommen, Vorzeichen werden nicht gelesen.",
   "import.pdf.staves": "{n} Systeme wurden von oben nach unten als eine Linie gelesen.",
   "import.err.pdfScan": "dieses PDF ist ein Scan, kein Notensatz",
+  "import.err.pdfLocked": "dieses PDF ist passwortgeschützt",
+  "import.err.pdfNot": "diese Datei ist kein PDF",
   "import.err.pdfEmpty": "auf dieser Seite ist zu wenig gezeichnet",
   "import.err.pdfNoStaves": "auf der Seite wurden keine Notenlinien gefunden",
   "import.err.pdfInflate": "dieser Browser kann ein komprimiertes PDF nicht entpacken",

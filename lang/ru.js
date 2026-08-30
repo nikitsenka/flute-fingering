@@ -177,6 +177,8 @@ window.I18N_STRINGS.ru = {
   "import.pdf.clef": "Ключ считается скрипичным, знаки альтерации не читаются.",
   "import.pdf.staves": "Нотоносцев прочитано как одна линия, сверху вниз: {n}.",
   "import.err.pdfScan": "этот PDF — скан, а не гравюра",
+  "import.err.pdfLocked": "этот PDF защищён паролем",
+  "import.err.pdfNot": "это не PDF",
   "import.err.pdfEmpty": "на этой странице слишком мало нарисовано",
   "import.err.pdfNoStaves": "на странице не найдены нотные линейки",
   "import.err.pdfInflate": "этот браузер не умеет распаковывать сжатый PDF",

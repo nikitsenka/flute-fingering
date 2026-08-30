@@ -154,6 +154,8 @@ window.I18N_STRINGS.zh = {
   "import.pdf.clef": "谱号按高音谱号处理，临时记号未读取。",
   "import.pdf.staves": "{n} 行谱表被自上而下读作一条旋律。",
   "import.err.pdfScan": "这个 PDF 是扫描件，不是矢量乐谱",
+  "import.err.pdfLocked": "这个 PDF 有密码保护",
+  "import.err.pdfNot": "这个文件不是 PDF",
   "import.err.pdfEmpty": "这一页上画的内容太少",
   "import.err.pdfNoStaves": "页面上没有找到五线谱",
   "import.err.pdfInflate": "此浏览器无法解压缩的 PDF",

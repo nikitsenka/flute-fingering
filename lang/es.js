@@ -161,6 +161,8 @@ window.I18N_STRINGS.es = {
   "import.pdf.clef": "Se supone la clave de sol, y las alteraciones no se leen.",
   "import.pdf.staves": "{n} pentagramas se leyeron como una sola línea, de arriba abajo.",
   "import.err.pdfScan": "este PDF es un escaneo, no una partitura grabada",
+  "import.err.pdfLocked": "este PDF está protegido con contraseña",
+  "import.err.pdfNot": "este archivo no es un PDF",
   "import.err.pdfEmpty": "hay muy poco dibujado en esta página",
   "import.err.pdfNoStaves": "no se encontraron pentagramas en la página",
   "import.err.pdfInflate": "este navegador no puede descomprimir un PDF comprimido",
