@@ -1228,7 +1228,9 @@
        front of the reader now than as a surprise on the first bar. */
     if(line.printed){
       notes.push(I18n.t("import.pdf.lengths"));
-      notes.push(I18n.t("import.pdf.accidentals"));
+      notes.push(line.printed.accidentals
+        ? I18n.t("import.pdf.altered", {n: line.printed.accidentals})
+        : I18n.t("import.pdf.accidentals"));
       if(line.printed.staves > 1){
         notes.push(I18n.t("import.pdf.staves", {n: line.printed.staves}));
       }

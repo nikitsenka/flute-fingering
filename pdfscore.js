@@ -20,8 +20,11 @@
  *   clef       read, from where the clef glyph sits: a treble clef is drawn on
  *              the G line and a bass clef on the F line, whatever font it is
  *              in, so the baseline says which it is without naming a glyph
+ *   accidental read when the file says what its glyphs mean -- a /ToUnicode
+ *              map names them, and both conventions are understood. A key
+ *              signature holds for its staff; one beside a head holds for that
+ *              head and, for want of barlines, no further
  *   length     NOT read -- every note comes in as a quarter
- *   key        NOT read -- accidentals beside a head are not looked for either
  *
  * That is a fingering trainer's half of the problem: the pitches and their
  * order are what a player practises against, and an even beat is a usable
@@ -270,6 +273,46 @@
     return best;
   }
 
+  /* ---------- sharps, flats and naturals ----------
+     A subset font names nothing, but a PDF that carries a /ToUnicode map says
+     what each code was meant to be, and engravers write one. Two conventions
+     appear: SMuFL fonts map into the musical block at U+E000, and the older
+     Finale and Sibelius fonts map into the private-use area at U+F000 plus the
+     ASCII code the glyph used to sit at -- so a flat is U+F062, the letter b.
+     Both are read here, and a file with no map simply has no accidentals read,
+     which is where this started. */
+  var SMUFL = {0xE260:"flat", 0xE261:"natural", 0xE262:"sharp"};
+  var LEGACY = {0x62:"flat", 0x6E:"natural", 0x23:"sharp"};
+  var SEMITONES = {flat:-1, natural:0, sharp:1};
+
+  function meaning(font, code){
+    var u = font.map ? font.map[code] : 0;
+    if(!u){ return null; }
+    if(SMUFL[u]){ return SMUFL[u]; }
+    if(u >= 0xF000 && u <= 0xF0FF){ u -= 0xF000; }
+    return LEGACY[u] || null;
+  }
+
+  function accidentals(page, font, list){
+    var out = [];
+    page.texts.forEach(function(t){
+      var what = meaning(font, codeOf(t));
+      if(!what){ return; }
+      var st = staffFor(t.y, list);
+      if(st === null){ return; }
+      out.push({staff:st, x:t.x, y:t.y, what:what});
+    });
+    return out;
+  }
+
+  /* Which letter a height on the staff is, ignoring the octave: what a key
+     signature alters. */
+  function letterAt(y, staff){
+    var steps = Math.round((y - staff.bottom) / (staff.step / 2));
+    var n = (staff.clef === "bass" ? BASS_BOTTOM : TREBLE_BOTTOM) + steps;
+    return ((n % 7) + 7) % 7;
+  }
+
   function glyphHeads(page, font, list){
     var codes = headCodes(page, font, list);
     if(!codes.length){ return []; }
@@ -327,10 +370,14 @@
      and which note that line is depends on the clef read above. */
   var LETTERS = ["c", "d", "e", "f", "g", "a", "b"];
 
-  function pitchAt(head, staff){
+  function pitchAt(head, staff, shift){
     var steps = Math.round((head.y - staff.bottom) / (staff.step / 2));
     var n = (staff.clef === "bass" ? BASS_BOTTOM : TREBLE_BOTTOM) + steps;
-    return LETTERS[((n % 7) + 7) % 7] + "/" + Math.floor(n / 7);
+    var plain = LETTERS[((n % 7) + 7) % 7] + "/" + Math.floor(n / 7);
+    if(!shift){ return plain; }
+    /* the scores spell everything with sharps, so a flat comes back as the
+       sharp of the note below -- the same pitch, the app's spelling */
+    return global.Note.keyOfMidi(global.Note.midi(plain) + shift);
   }
 
   /* ---------- what is on the page ----------
@@ -343,6 +390,7 @@
   function recognise(doc){
     var notes = [];
     var staffCount = 0, usedStaves = 0, skipped = 0, chords = 0, fromGlyphs = false;
+    var accidentalsRead = 0;
 
     doc.pages.forEach(function(page){
       var list = staves(page);
@@ -355,6 +403,30 @@
 
       var found = font ? glyphHeads(page, font, list) : [];
       if(found.length){ fromGlyphs = true; } else { found = heads(page, list); }
+
+      /* Accidentals, if the font said which glyph is which. Two kinds, and the
+         difference is where they sit: before the first note of a staff they are
+         the key signature and hold for the whole staff, one letter at a time,
+         every octave; beside a head they belong to that head.
+
+         A real accidental also holds to the end of its bar, which needs
+         barlines this does not read yet -- so a repeated note after one comes
+         back plain. That is a smaller error than ignoring accidentals
+         altogether, which is where this started, and the dialog says the
+         lengths are unread, which is the same bar. */
+      var marks = font ? accidentals(page, font, list) : [];
+      accidentalsRead += marks.length;
+      var keys = {};
+
+      list.forEach(function(st, i){
+        var first = null;
+        found.forEach(function(h){ if(h.staff === i && (first === null || h.x < first)){ first = h.x; } });
+        keys[i] = {};
+        marks.forEach(function(a){
+          if(a.staff !== i || first === null || a.x >= first - st.step){ return; }
+          keys[i][letterAt(a.y, st)] = SEMITONES[a.what];
+        });
+      });
 
       /* one part, so the treble staves are the piece; a page with no treble
          staff at all is read as it is rather than refused */
@@ -373,11 +445,11 @@
         if(lastStaff === h.staff && lastX !== null && Math.abs(h.x - lastX) < st.step * 0.6){
           chords++;
           var prev = notes[notes.length - 1];
-          var here = pitchAt(h, st);
+          var here = pitchAt(h, st, shiftFor(h, st, marks, keys[h.staff]));
           if(global.Note.midi(here) > global.Note.midi(prev)){ notes[notes.length - 1] = here; }
           return;
         }
-        notes.push(pitchAt(h, st));
+        notes.push(pitchAt(h, st, shiftFor(h, st, marks, keys[h.staff])));
         lastX = h.x;
         lastStaff = h.staff;
       });
@@ -385,7 +457,24 @@
     });
 
     return {notes:notes, staves:staffCount, used:usedStaves, skipped:skipped,
-            chords:chords, glyphs:fromGlyphs};
+            chords:chords, glyphs:fromGlyphs, accidentals:accidentalsRead};
+  }
+
+  /* An accidental beside this head beats the key signature, which is what the
+     signature is for; nothing at all leaves the note as written. */
+  function shiftFor(head, staff, marks, key){
+    var best = null, bestGap = Infinity;
+    marks.forEach(function(a){
+      if(a.staff !== head.staff){ return; }
+      if(Math.abs(a.y - head.y) > staff.step * 0.6){ return; }
+      var gap = head.x - a.x;
+      if(gap <= 0 || gap > staff.step * 3.5){ return; }
+      if(gap < bestGap){ bestGap = gap; best = a; }
+    });
+    if(best){ return SEMITONES[best.what]; }
+
+    var letter = letterAt(head.y, staff);
+    return key && key[letter] !== undefined ? key[letter] : 0;
   }
 
   function analyze(doc){
@@ -400,7 +489,8 @@
       used: {},
       /* what the page could not tell us, carried so the dialog can say it
          before the reader presses Add rather than after */
-      printed: {staves:seen.used, skipped:seen.skipped, lengths:false}
+      printed: {staves:seen.used, skipped:seen.skipped, lengths:false,
+                accidentals:seen.accidentals}
     };
 
     seen.notes.forEach(function(pitch){
@@ -463,8 +553,11 @@
 
     measures[measures.length - 1].bar = "double";
 
-    var problems = ["lengths are not read from the page: every note came in as a quarter",
-                    "sharps and flats beside a head were not read"];
+    var problems = ["lengths are not read from the page: every note came in as a quarter"];
+    problems.push(doc.seen.accidentals
+      ? doc.seen.accidentals + " sharp(s), flat(s) and natural(s) were read; one does not " +
+        "carry to the rest of its bar, since barlines are not read yet"
+      : "sharps and flats beside a head were not read");
     if(doc.seen.used > 1){
       problems.push(doc.seen.used + " staves were read as one line, top to bottom");
     }

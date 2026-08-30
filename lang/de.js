@@ -159,6 +159,7 @@ window.I18N_STRINGS.de = {
   "import.pdf.hint": "Die Noten wurden von der Seite gelesen. Notenlängen werden noch nicht gelesen — prüfen Sie sie nach dem Hinzufügen.",
   "import.pdf.lengths": "Notenlängen werden nicht von der Seite gelesen: jede Note kommt als Viertel an.",
   "import.pdf.accidentals": "Vorzeichen neben einer Note werden nicht gelesen; eine alterierte Note kommt als die einfache an.",
+  "import.pdf.altered": "Vorzeichen wurden gelesen ({n}). Ein Vorzeichen gilt noch nicht bis zum Taktende, eine Wiederholung der alterierten Note kommt daher ohne an.",
   "import.pdf.staves": "{n} Systeme wurden von oben nach unten als eine Linie gelesen.",
   "import.pdf.bass": "{n} Note(n) auf Systemen in einem anderen Schlüssel — der linken Hand eines Klavierparts — wurden ausgelassen.",
   "import.err.pdfScan": "dieses PDF ist ein Scan, kein Notensatz",

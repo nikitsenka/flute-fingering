@@ -159,6 +159,7 @@ window.I18N_STRINGS.fr = {
   "import.pdf.hint": "Les notes ont été lues sur la page. Les durées ne sont pas encore lues — vérifiez-les après l'ajout.",
   "import.pdf.lengths": "Les durées ne sont pas lues sur la page : chaque note arrive en noire.",
   "import.pdf.accidentals": "Les altérations à côté d'une note ne sont pas lues : une note altérée arrive telle quelle.",
+  "import.pdf.altered": "Les altérations ont été lues ({n}). Une altération ne vaut pas encore jusqu'à la fin de la mesure : une note altérée répétée arrive sans elle.",
   "import.pdf.staves": "{n} portées ont été lues comme une seule ligne, de haut en bas.",
   "import.pdf.bass": "{n} note(s) sur des portées dans une autre clé — la main gauche d'une partie de piano — ont été laissées de côté.",
   "import.err.pdfScan": "ce PDF est un scan, pas une gravure",

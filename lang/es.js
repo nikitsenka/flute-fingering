@@ -159,6 +159,7 @@ window.I18N_STRINGS.es = {
   "import.pdf.hint": "Las notas se leyeron de la página. Las duraciones aún no se leen: revísalas después de añadir.",
   "import.pdf.lengths": "Las duraciones no se leen de la página: cada nota entra como negra.",
   "import.pdf.accidentals": "Las alteraciones junto a una nota no se leen: una nota alterada llega como la natural.",
+  "import.pdf.altered": "Se leyeron las alteraciones ({n}). Una alteración todavía no rige hasta el final del compás, así que una nota alterada repetida llega sin ella.",
   "import.pdf.staves": "{n} pentagramas se leyeron como una sola línea, de arriba abajo.",
   "import.pdf.bass": "{n} nota(s) en pentagramas con otra clave — la mano izquierda de un piano — se dejaron fuera.",
   "import.err.pdfScan": "este PDF es un escaneo, no una partitura grabada",

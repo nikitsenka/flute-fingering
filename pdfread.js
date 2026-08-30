@@ -872,6 +872,58 @@
     return chain.then(function(){ return parts.join("\n"); });
   }
 
+  /* ---------- what a glyph code means ----------
+     A subset music font hands out codes that mean nothing outside the file it
+     came in -- but a PDF that carries a /ToUnicode CMap says what each code was
+     meant to be, and engravers do write one. Two conventions turn up: a SMuFL
+     font maps to the musical block at U+E000, and the older Finale and Sibelius
+     fonts map to the private-use area at U+F000 plus the ASCII code the glyph
+     used to sit at, so a flat is U+F062, the letter b. Either way the map is
+     what lets a reader say "that is a flat" instead of "that is code 68".
+
+     Only bfchar and bfranges are read, which is all a ToUnicode CMap holds. */
+  function parseCMap(text){
+    var map = {};
+
+    text.replace(/beginbfchar([\s\S]*?)endbfchar/g, function(all, body){
+      body.replace(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g, function(m, from, to){
+        map[parseInt(from, 16)] = parseInt(to.slice(0, 4), 16);
+        return "";
+      });
+      return "";
+    });
+
+    text.replace(/beginbfrange([\s\S]*?)endbfrange/g, function(all, body){
+      body.replace(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g,
+        function(m, lo, hi, to){
+          var a = parseInt(lo, 16), b = parseInt(hi, 16), t = parseInt(to.slice(0, 4), 16);
+          /* a runaway range would be a malformed file, not a big font */
+          for(var i = a; i <= b && i - a < 4096; i++){ map[i] = t + (i - a); }
+          return "";
+        });
+      return "";
+    });
+
+    return map;
+  }
+
+  /* One promise per font that has a map; a font without one is left alone. */
+  function toUnicode(doc, resources, list){
+    var cat = doc.get(resources, "Font");
+    if(!isDict(cat)){ return Promise.resolve(list); }
+
+    var jobs = list.map(function(f){
+      var dict = doc.resolve(cat[f.key]);
+      var ref = isDict(dict) ? dict.ToUnicode : null;
+      if(!ref || ref.ref === undefined){ return Promise.resolve(); }
+      return doc.streamBytes(ref.ref).then(function(bytes){
+        if(bytes){ f.map = parseCMap(latin1(bytes)); }
+      }, function(){ /* an unreadable map is the same as none */ });
+    });
+
+    return Promise.all(jobs).then(function(){ return list; });
+  }
+
   function page(doc, index){
     var entry = doc.pages[index];
     if(!entry){ return Promise.reject(fail("no page " + index)); }
@@ -886,8 +938,11 @@
     var base = [1, 0, 0, 1, -Math.min(box[0], box[2]), -Math.min(box[1], box[3])];
 
     var marks = new Marks();
+    var list = fonts(doc, resources);
     return contentOf(doc, dict).then(function(content){
       return walk(doc, content, resources, {ctm:base}, marks, 0);
+    }).then(function(){
+      return toUnicode(doc, resources, list);
     }).then(function(){
       return {
         index: index,
@@ -898,7 +953,7 @@
         strokes: marks.strokes,
         texts: marks.texts,
         images: marks.images,
-        fonts: fonts(doc, resources),
+        fonts: list,
         truncated: marks.truncated
       };
     });

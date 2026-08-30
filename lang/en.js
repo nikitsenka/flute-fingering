@@ -177,6 +177,7 @@ window.I18N_STRINGS.en = {
   "import.pdf.hint": "The notes were read off the page. Lengths are not read yet — check them after adding.",
   "import.pdf.lengths": "Lengths are not read from the page: every note comes in as a quarter.",
   "import.pdf.accidentals": "Sharps and flats beside a note are not read, so an altered note arrives as the plain one.",
+  "import.pdf.altered": "Sharps, flats and naturals were read ({n}). One does not carry to the rest of its bar yet, so a repeat of an altered note comes in plain.",
   "import.pdf.staves": "{n} staves were read as one line, top to bottom.",
   "import.pdf.bass": "{n} note(s) on staves in another clef — the left hand of a piano part — were left out.",
   "import.err.pdfScan": "this PDF is a scan, not an engraving",

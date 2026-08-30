@@ -152,6 +152,7 @@ window.I18N_STRINGS.zh = {
   "import.pdf.hint": "音符已从页面读取。时值尚未读取——添加后请检查。",
   "import.pdf.lengths": "时值未从页面读取：每个音符都按四分音符加入。",
   "import.pdf.accidentals": "音符旁的升降号未读取，变化音会按本位音加入。",
+  "import.pdf.altered": "已读取 {n} 个升降还原记号。记号尚不延续到本小节其余部分，重复出现的变化音会按本位音加入。",
   "import.pdf.staves": "{n} 行谱表被自上而下读作一条旋律。",
   "import.pdf.bass": "另一谱号的谱表（钢琴左手）上的 {n} 个音符已略过。",
   "import.err.pdfScan": "这个 PDF 是扫描件，不是矢量乐谱",
