@@ -93,8 +93,9 @@ window.I18N_STRINGS.de = {
   "game.restart": "↺ Von vorn",
   "game.piece": "Stück",
   "game.add": "＋ Aus Datei",
-  "game.add.title": "MusicXML (.mxl) laden",
+  "game.add.title": "MusicXML (.mxl) oder eine Aufnahme laden",
   "game.formats": "liest {list}",
+  "game.listening": "Die Aufnahme wird abgehört…",
   "game.tempo": "Tempo",
   "game.sound": "🔊 Ton",
   "game.setup": "⚙ Einstellungen",
@@ -140,5 +141,17 @@ window.I18N_STRINGS.de = {
   "import.err.noScore": "im Archiv ist keine Partitur",
   "import.err.noPart": "Stimme nicht gefunden",
   "import.err.noNotes": "in dieser Stimme stehen keine Noten",
-  "import.err.empty": "in der Datei wurden keine Noten gefunden"
+  "import.err.empty": "in der Datei wurden keine Noten gefunden",
+
+  /* ---------- importing a recording ---------- */
+  "import.recording": "Aufnahme",
+  "import.audio.hint": "In der Aufnahme wurde eine Stimme gehört. Prüfe das Tempo und korrigiere nach dem Hinzufügen, was falsch herauskam.",
+  "import.audio.tempo": "Gehörtes Tempo: etwa {bpm} Schläge pro Minute.",
+  "import.audio.mixed": "In dieser Aufnahme spielt mehr als ein Instrument, die Noten stimmen also nur ungefähr.",
+  "import.audio.wide": "Die Noten umspannen {spread} Halbtöne, das Instrument nur {span}. Entweder wurden einige eine Oktave daneben gehört, oder es wurde eine tiefere Stimme statt der Melodie verfolgt — dagegen hilft der Oktavregler nicht.",
+  "import.audio.jumpy": "Benachbarte Noten springen immer wieder genau eine Oktave. Das ist meist ein Hörfehler — mitunter ein Abrutschen auf eine andere Stimme — und kein Sprung in der Musik.",
+  "import.audio.below": "Alle Noten liegen unter dem Umfang des Instruments. Entweder ist die Aufnahme von einem tieferen Instrument — dann hilft die Oktave — oder es wurde eine tiefere Stimme statt der Melodie verfolgt, und dagegen hilft sie nicht.",
+  "import.err.noAudio": "dieser Browser kann kein Audio dekodieren",
+  "import.err.notAudio": "die Datei lässt sich nicht als Audio lesen",
+  "import.err.noPitch": "die Tonerkennung ist nicht geladen"
 };

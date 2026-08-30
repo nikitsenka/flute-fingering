@@ -250,7 +250,7 @@
   <div class="bar setup" id="setup">
     <label class="tempo"><span data-i18n="game.piece">piece</span> <select id="song"></select></label>
     <button class="btn" id="add" type="button" data-i18n="game.add" data-i18n-title="game.add.title" title="Load MusicXML (.mxl)">＋ From file</button>
-    <input type="file" id="file" accept=".mxl,.musicxml,.xml" hidden>
+    <input type="file" id="file" accept=".mxl,.musicxml,.xml,audio/*,.wav,.mp3,.m4a,.aac,.ogg,.oga,.opus,.flac,.webm" hidden>
     <button class="btn" id="sound" type="button" aria-pressed="true" data-i18n="game.sound">🔊 Sound</button>
     <span id="topbar"></span>
   </div>
@@ -274,7 +274,7 @@
 
   <dialog id="pick">
     <h2 data-i18n="import.which">Which line are we playing?</h2>
-    <p class="hint" data-i18n="import.hint">There are several parts in the file. Pick the main melody.</p>
+    <p class="hint" id="pickHint" data-i18n="import.hint">There are several parts in the file. Pick the main melody.</p>
     <div class="lines" id="lines"></div>
     <div class="row">
       <label><span data-i18n="import.name">name</span> <input type="text" id="newTitle" maxlength="40"></label>
@@ -319,6 +319,8 @@
 <script src="instruments/flute.js"></script>
 <script src="instruments/piano.js"></script>
 <script src="songimport.js"></script>
+<script src="audiopitch.js"></script>
+<script src="audioimport.js"></script>
 <script>
 (function(){
   "use strict";
@@ -703,6 +705,7 @@
 
   /* ---------- transport ---------- */
   var bpm = 60;
+  var PER_BAR = 4;                    // beats in a bar, set from the piece
   var playing = false;
   var head = 0;                       // position in beats
   var last = 0;
@@ -806,8 +809,12 @@
   var seek = document.getElementById("seek");
   var seekVal = document.getElementById("seekVal");
 
+  /* PER_BAR comes from the piece, not from a constant: a waltz is three beats
+     to the bar, and a counter that always divides by four labels the seek
+     slider with bar numbers that drift further from the music the longer it
+     plays. */
   function barAt(beats){
-    return Math.min(LAST_BAR, FIRST_BAR + Math.max(0, Math.floor(beats / 4)));
+    return Math.min(LAST_BAR, FIRST_BAR + Math.max(0, Math.floor(beats / PER_BAR)));
   }
 
   seek.addEventListener("input", function(){
@@ -856,6 +863,7 @@
   /* ---------- loading a piece ---------- */
   function loadSong(s){
     song = s;
+    PER_BAR = DURATIONS.perBar(s.score.time);
 
     TIMELINE = [];
     TOTAL = 0;
@@ -972,7 +980,41 @@
     loadSong(s);
   });
 
-  /* ---------- loading a piece from a MusicXML file ---------- */
+  /* ---------- loading a piece from a file ----------
+     Two sources now, and the page deliberately knows almost nothing about
+     either: a module is picked by the look of the file, and everything after
+     that -- which line, which octave, what cannot be played, what to save --
+     runs against the same three calls and the same shape of line. Adding a
+     third source should mean adding a row here and nothing else. */
+  var IMPORTERS = [
+    {
+      id: "musicxml",
+      hint: "import.hint",
+      extensions: /\.(mxl|musicxml|xml)$/i,
+      claims: function(file){ return /\.(mxl|musicxml|xml)$/i.test(file.name); },
+      module: function(){ return window.SongImport; }
+    },
+    {
+      id: "audio",
+      hint: "import.audio.hint",
+      extensions: /\.(wav|mp3|m4a|aac|ogg|oga|opus|flac|webm|aiff?)$/i,
+      /* the type the browser reports is the better answer when it has one --
+         a recording off a phone can arrive with any extension at all */
+      claims: function(file){
+        return /^audio\//.test(file.type || "") ||
+               /\.(wav|mp3|m4a|aac|ogg|oga|opus|flac|webm|aiff?)$/i.test(file.name);
+      },
+      module: function(){ return window.AudioImport; }
+    }
+  ];
+
+  function importerFor(file){
+    for(var i = 0; i < IMPORTERS.length; i++){
+      if(IMPORTERS[i].claims(file)){ return IMPORTERS[i]; }
+    }
+    return null;
+  }
+
   var fileInput = document.getElementById("file");
   var dialog = document.getElementById("pick");
   var linesBox = document.getElementById("lines");
@@ -1035,20 +1077,37 @@
     var file = this.files && this.files[0];
     if(!file){ return; }
     stop();
-    SongImport.read(file).then(function(doc){
-      var lines = SongImport.analyze(doc);
-      if(!lines.length){ throw failed("import.err.empty"); }
-      pending = {doc:doc, lines:lines};
-      showPicker(file.name, lines);
-    }).catch(function(err){
-      setBanner("game.failed", {why: why(err)});
+
+    var kind = importerFor(file);
+    if(!kind){
+      setBanner("game.failed", {why: I18n.t("import.err.notAudio")});
       drawFrame(head, null);
-    });
+      return;
+    }
+
+    /* Listening to a recording takes seconds, not milliseconds, and it happens
+       before anything appears on screen. Say so, or the page looks broken. */
+    if(kind.id === "audio"){ setBanner("game.listening"); drawFrame(head, null); }
+
+    var module = kind.module();
+    Promise.resolve()
+      .then(function(){ return module.read(file); })
+      .then(function(doc){
+        var lines = module.analyze(doc);
+        if(!lines.length){ throw failed("import.err.empty"); }
+        pending = {kind:kind, module:module, doc:doc, lines:lines};
+        setBanner(null);
+        showPicker(file.name, lines, kind);
+      }).catch(function(err){
+        setBanner("game.failed", {why: why(err)});
+        drawFrame(head, null);
+      });
   });
 
-  function showPicker(filename, lines){
+  function showPicker(filename, lines, kind){
     renderLines(lines);
-    titleInput.value = filename.replace(/\.(mxl|musicxml|xml)$/i, "").slice(0, 40);
+    document.getElementById("pickHint").textContent = I18n.t(kind.hint);
+    titleInput.value = filename.replace(kind.extensions, "").slice(0, 40);
     preview();
     dialog.showModal();
   }
@@ -1097,10 +1156,16 @@
     return pending.lines[picked ? +picked.value : 0];
   }
 
+  /* These two read a line's range and the notes it uses, both of which every
+     importer fills in the same way, so they are not MusicXML's even though they
+     live in its module. */
+  var suggestOctave = SongImport.suggestOctave;
+  var playableShare = SongImport.playableShare;
+
   /* keep the octave suggestion and the warning in step with the choice */
   function preview(){
     var line = chosen();
-    shiftSel.value = String(SongImport.suggestOctave(line));
+    shiftSel.value = String(suggestOctave(line));
     describe(line);
   }
 
@@ -1111,7 +1176,7 @@
     /* the share has to be recomputed for the shift on show -- line.share is the
        answer for the octave the file was written in, and the reader is looking
        at a different one */
-    var share = SongImport.playableShare(line, shift);
+    var share = playableShare(line, shift);
     var notes = [I18n.t("import.range", {
       lo: pitchName(line.lo + shift * 12),
       hi: pitchName(line.hi + shift * 12)
@@ -1127,12 +1192,40 @@
        0% above has already said the whole of it */
     if(share > 0 && share < 0.9){ notes.push(I18n.t("import.outOfRange")); }
     if(line.chords){ notes.push(I18n.plural("import.chords", line.chords)); }
+
+    /* A recording brings two facts nothing else does: a tempo that was guessed
+       rather than read, and whether it sounded like one instrument at all. Both
+       belong in front of the player before they press Add, not in a report
+       afterwards -- they change whether the import is worth doing. */
+    if(line.tempo && line.tempo.bpm){
+      notes.push(I18n.t("import.audio.tempo", {bpm: Math.round(line.tempo.bpm)}));
+    }
+    /* "mixed" and "dense" are the listener's own reading of the signal;
+       "suspect" is this page's, from the octave trouble below, and has its own
+       wording -- so this asks for the two it can speak to rather than for
+       "anything that is not one voice". */
+    if(line.source && (line.source.verdict === "mixed" || line.source.verdict === "dense")){
+      notes.push(I18n.t("import.audio.mixed"));
+    }
+    /* The listener cannot see its own octave slips -- from here they show as a
+       line too wide for the instrument, or one that keeps leaping twelve
+       semitones. Either way it belongs beside the octave selector, which is the
+       control the reader would otherwise reach for to "fix" it. */
+    if(line.trouble && line.trouble.verdict === "wide"){
+      notes.push(I18n.t("import.audio.wide", {spread:line.trouble.spread, span:line.trouble.span}));
+    } else if(line.trouble && line.trouble.verdict === "jumpy"){
+      notes.push(I18n.t("import.audio.jumpy"));
+    } else if(line.trouble && line.trouble.verdict === "below"){
+      notes.push(I18n.t("import.audio.below"));
+    }
     warnBox.textContent = notes.join(" ");
     warnBox.hidden = false;      /* it always says something now */
   }
 
-  /* one entry per (part, staff, voice); songimport.js leaves the wording to us */
+  /* one entry per (part, staff, voice); songimport.js leaves the wording to us,
+     and a recording has no part to name -- it is simply what was heard */
   function lineLabel(line){
+    if(!line.partName){ return I18n.t("import.recording"); }
     return line.partName +
       (line.staff !== "1" ? I18n.t("import.staff", {n: line.staff}) : "") +
       (line.voice !== "1" ? I18n.t("import.voice", {n: line.voice}) : "");
@@ -1149,7 +1242,7 @@
     var line = chosen();
     var result;
     try {
-      result = SongImport.convert(pending.doc, line, {octave:+shiftSel.value});
+      result = pending.module.convert(pending.doc, line, {octave:+shiftSel.value});
     } catch(err){
       setBanner("game.failed", {why: why(err)});
       dialog.close();
@@ -1166,6 +1259,14 @@
     mine.push({id:id, title:title, score:result.score});
     keep(MINE_KEY, mine);
     keep(STORE_KEY, id);
+
+    /* The piece was written down at the tempo it was played, so the slider
+       should start there rather than at whatever the last piece used. */
+    if(result.report.bpm){
+      bpm = Math.max(+bpmInput.min, Math.min(+bpmInput.max, result.report.bpm));
+      bpmInput.value = bpm;
+      bpmVal.textContent = bpm;
+    }
 
     dialog.close();
     pending = null;

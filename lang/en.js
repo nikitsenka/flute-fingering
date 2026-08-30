@@ -110,8 +110,9 @@ window.I18N_STRINGS.en = {
   "game.restart": "↺ Restart",
   "game.piece": "piece",
   "game.add": "＋ From file",
-  "game.add.title": "Load MusicXML (.mxl)",
+  "game.add.title": "Load MusicXML (.mxl) or a recording",
   "game.formats": "reads {list}",
+  "game.listening": "Listening to the recording…",
   "game.tempo": "tempo",
   "game.sound": "🔊 Sound",
   "game.setup": "⚙ Setup",
@@ -158,5 +159,17 @@ window.I18N_STRINGS.en = {
   "import.err.noScore": "there is no score inside the archive",
   "import.err.noPart": "part not found",
   "import.err.noNotes": "there are no notes in this line",
-  "import.err.empty": "no notes were found in the file"
+  "import.err.empty": "no notes were found in the file",
+
+  /* ---------- importing a recording ---------- */
+  "import.recording": "Recording",
+  "import.audio.hint": "One line was heard in the recording. Check the tempo, and fix whatever came out wrong after adding it.",
+  "import.audio.tempo": "Tempo heard: about {bpm} beats per minute.",
+  "import.audio.mixed": "More than one instrument is playing in this recording, so the notes will only be roughly right.",
+  "import.audio.wide": "The notes span {spread} semitones, more than the instrument's {span}. Either some were heard an octave out, or the app followed a lower part — a bass line — instead of the melody, and the octave control cannot fix that one.",
+  "import.audio.jumpy": "Neighbouring notes keep leaping exactly an octave. That is usually the listening slipping — sometimes onto another part altogether — rather than a leap in the music.",
+  "import.audio.below": "Every note came out below the instrument's range. Either the recording is of a lower instrument — shift the octave — or a lower part was followed instead of the melody, which shifting will not fix.",
+  "import.err.noAudio": "this browser cannot decode audio",
+  "import.err.notAudio": "this file does not read as audio",
+  "import.err.noPitch": "the listener is not loaded"
 };

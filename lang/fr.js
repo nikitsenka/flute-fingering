@@ -93,8 +93,9 @@ window.I18N_STRINGS.fr = {
   "game.restart": "↺ Au début",
   "game.piece": "morceau",
   "game.add": "＋ Depuis un fichier",
-  "game.add.title": "Charger un MusicXML (.mxl)",
+  "game.add.title": "Charger un MusicXML (.mxl) ou un enregistrement",
   "game.formats": "lit {list}",
+  "game.listening": "Écoute de l'enregistrement…",
   "game.tempo": "tempo",
   "game.sound": "🔊 Son",
   "game.setup": "⚙ Réglages",
@@ -140,5 +141,17 @@ window.I18N_STRINGS.fr = {
   "import.err.noScore": "il n'y a pas de partition dans l'archive",
   "import.err.noPart": "partie introuvable",
   "import.err.noNotes": "il n'y a pas de notes dans cette ligne",
-  "import.err.empty": "aucune note trouvée dans le fichier"
+  "import.err.empty": "aucune note trouvée dans le fichier",
+
+  /* ---------- importing a recording ---------- */
+  "import.recording": "Enregistrement",
+  "import.audio.hint": "Une ligne a été entendue dans l'enregistrement. Vérifie le tempo et corrige ce qui est faux après l'ajout.",
+  "import.audio.tempo": "Tempo entendu : environ {bpm} pulsations par minute.",
+  "import.audio.mixed": "Plusieurs instruments jouent dans cet enregistrement : les notes ne seront qu'approximatives.",
+  "import.audio.wide": "Les notes couvrent {spread} demi-tons, l'instrument {span}. Soit certaines ont été entendues à une octave près, soit c'est une voix plus grave qui a été suivie au lieu de la mélodie — et le réglage d'octave n'y peut rien.",
+  "import.audio.jumpy": "Des notes voisines sautent sans cesse d'une octave exacte. C'est le plus souvent une erreur d'écoute — parfois un glissement vers une autre voix — et non un saut de la musique.",
+  "import.audio.below": "Toutes les notes sont sorties sous l'ambitus de l'instrument. Soit l'enregistrement est celui d'un instrument plus grave — l'octave y remédie — soit une voix plus grave a été suivie au lieu de la mélodie, et là non.",
+  "import.err.noAudio": "ce navigateur ne sait pas décoder l'audio",
+  "import.err.notAudio": "ce fichier ne se lit pas comme de l'audio",
+  "import.err.noPitch": "le détecteur de hauteur n'est pas chargé"
 };

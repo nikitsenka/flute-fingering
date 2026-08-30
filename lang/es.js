@@ -93,8 +93,9 @@ window.I18N_STRINGS.es = {
   "game.restart": "↺ Desde el principio",
   "game.piece": "pieza",
   "game.add": "＋ Desde archivo",
-  "game.add.title": "Cargar MusicXML (.mxl)",
+  "game.add.title": "Cargar MusicXML (.mxl) o una grabación",
   "game.formats": "lee {list}",
+  "game.listening": "Escuchando la grabación…",
   "game.tempo": "tempo",
   "game.sound": "🔊 Sonido",
   "game.setup": "⚙ Ajustes",
@@ -140,5 +141,17 @@ window.I18N_STRINGS.es = {
   "import.err.noScore": "dentro del archivo no hay partitura",
   "import.err.noPart": "no se encontró la parte",
   "import.err.noNotes": "esta línea no tiene notas",
-  "import.err.empty": "no se encontraron notas en el archivo"
+  "import.err.empty": "no se encontraron notas en el archivo",
+
+  /* ---------- importing a recording ---------- */
+  "import.recording": "Grabación",
+  "import.audio.hint": "Se oyó una línea en la grabación. Comprueba el tempo y corrige lo que haya salido mal después de añadirla.",
+  "import.audio.tempo": "Tempo oído: unos {bpm} pulsos por minuto.",
+  "import.audio.mixed": "En esta grabación suena más de un instrumento, así que las notas solo serán aproximadas.",
+  "import.audio.wide": "Las notas abarcan {spread} semitonos y el instrumento solo {span}. O algunas se oyeron una octava desviadas, o se siguió una voz más grave en lugar de la melodía, y eso el control de octava no lo arregla.",
+  "import.audio.jumpy": "Las notas vecinas saltan una octava exacta una y otra vez. Suele ser un fallo de escucha —a veces un salto a otra voz— y no un salto de la música.",
+  "import.audio.below": "Todas las notas salieron por debajo del registro del instrumento. O la grabación es de un instrumento más grave —entonces sirve cambiar la octava— o se siguió una voz más grave en lugar de la melodía, y eso no se arregla así.",
+  "import.err.noAudio": "este navegador no puede descodificar audio",
+  "import.err.notAudio": "este archivo no se lee como audio",
+  "import.err.noPitch": "el detector de tono no está cargado"
 };

@@ -32,8 +32,27 @@ var INSTRUMENTS = sandbox.window.Instruments.list();
 var BEATS = sandbox.window.DURATIONS.beats;
 var problems = [];
 
+var PER_BAR = sandbox.window.DURATIONS.perBar;
+
+/* Both built-in pieces are in 4/4, so nothing below would notice if the bar
+   length went back to being a constant. These cases are the guard: a beat is a
+   quarter, so 3/4 holds three and 6/8 holds three as well. */
+[["4/4", 4], ["3/4", 3], ["2/4", 2], ["6/8", 3], ["2/2", 4], ["12/8", 6],
+ ["", 4], [undefined, 4], ["nonsense", 4]].forEach(function(pair){
+  var got = PER_BAR(pair[0]);
+  if(Math.abs(got - pair[1]) > 1e-9){
+    problems.push("DURATIONS.perBar(" + JSON.stringify(pair[0]) + ") = " + got +
+                  ", expected " + pair[1]);
+  }
+});
+
 sandbox.SONGS.forEach(function(song){
   var where = song.id;
+  /* what a bar holds is the piece's own business -- songimport.js reads the
+     signature out of a file and writes it into the score, so a check that
+     insisted on four would reject every waltz the moment one was imported */
+  var time = song.score.time || "4/4";
+  var perBar = PER_BAR(time);
   var pitches = {};
   var beats = 0;
 
@@ -56,8 +75,9 @@ sandbox.SONGS.forEach(function(song){
       sum += d;
       if(n[0] !== "R"){ pitches[n[0]] = true; }
     });
-    if(Math.abs(sum - 4) > 1e-9){
-      problems.push(where + " bar " + m.n + ": " + sum + " beats, expected 4");
+    if(Math.abs(sum - perBar) > 1e-9){
+      problems.push(where + " bar " + m.n + ": " + sum + " beats, expected " + perBar +
+                    " for " + time);
     }
     if(i > 0 && m.n <= song.score.measures[i - 1].n){
       problems.push(where + " bar " + m.n + ": bar numbers must increase");

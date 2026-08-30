@@ -19,6 +19,14 @@
  *
  * A triplet is three in the place of two, so it does not land on a whole
  * number of beats; VexFlow draws those as ordinary notes inside a VF.Tuplet.
+ *
+ * How long a bar is belongs here too, for the same reason: everything that
+ * counts beats -- the game's bar counter, the checks, every importer -- has to
+ * agree on it, and three of them had drifted into assuming four. A beat is a
+ * quarter here (that is what `beats` above counts), so 3/4 is three of them and
+ * 6/8 is three as well, six eighths being the same length. Compound time is
+ * therefore counted, not felt: a bar of 6/8 is three beats long even though a
+ * musician conducts it in two.
  */
 (function(global){
   "use strict";
@@ -47,6 +55,17 @@
     list: LIST,      /* longest first */
     of: OF,          /* code -> the whole entry */
     beats: BEATS,    /* code -> beats */
+
+    /* How many beats a bar holds under a "top/bottom" signature -- the string
+       a score carries in `time`. Anything unreadable falls back to four rather
+       than throwing: a missing signature is common in a hand-written piece, and
+       an importer's report is a better place to complain than a getter. */
+    perBar: function(time){
+      var bits = String(time || "4/4").split("/");
+      var top = parseFloat(bits[0]), bottom = parseFloat(bits[1]);
+      if(!(top > 0) || !(bottom > 0)){ return 4; }
+      return top * 4 / bottom;
+    },
 
     /* the code for a beat count, or null if it does not fit the grid */
     codeFor: function(beats){

@@ -90,8 +90,9 @@ window.I18N_STRINGS.zh = {
   "game.restart": "↺ 从头开始",
   "game.piece": "曲目",
   "game.add": "＋ 从文件",
-  "game.add.title": "载入 MusicXML (.mxl)",
+  "game.add.title": "载入 MusicXML (.mxl) 或录音",
   "game.formats": "可读取 {list}",
+  "game.listening": "正在聆听录音…",
   "game.tempo": "速度",
   "game.sound": "🔊 声音",
   "game.setup": "⚙ 设置",
@@ -133,5 +134,17 @@ window.I18N_STRINGS.zh = {
   "import.err.noScore": "压缩包里没有乐谱",
   "import.err.noPart": "找不到该声部",
   "import.err.noNotes": "这一行里没有音符",
-  "import.err.empty": "文件里没有找到音符"
+  "import.err.empty": "文件里没有找到音符",
+
+  /* ---------- importing a recording ---------- */
+  "import.recording": "录音",
+  "import.audio.hint": "从录音里听出一条旋律。请核对速度，添加后再修正听错的地方。",
+  "import.audio.tempo": "听到的速度：约每分钟 {bpm} 拍。",
+  "import.audio.mixed": "这段录音里同时响着多件乐器，音符只会大致正确。",
+  "import.audio.wide": "音域跨了 {spread} 个半音，而乐器只有 {span} 个。要么有些音听成了差一个八度，要么跟错了声部——听成了低音而不是旋律，后一种情况改八度是修不好的。",
+  "import.audio.jumpy": "相邻的音反复正好跳一个八度。这多半是听辨滑落——有时是跟到了别的声部——而不是音乐本身在跳。",
+  "import.audio.below": "所有音都落在乐器音域之下。要么这是更低乐器的录音——改八度即可——要么跟错了声部而不是旋律，那样改八度无济于事。",
+  "import.err.noAudio": "此浏览器无法解码音频",
+  "import.err.notAudio": "此文件无法作为音频读取",
+  "import.err.noPitch": "音高检测尚未载入"
 };

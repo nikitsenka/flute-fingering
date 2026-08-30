@@ -52,6 +52,15 @@
     return step(c[0], !!c[1]);
   }
 
+  /* The pitch as the scores spell it, "c#/4" -- what ofMidi() shows a reader,
+     keyOfMidi() writes into a piece. Every importer needs this: a file gives
+     numbers, and the score model is written in letters. Sharps throughout,
+     matching CHROMA above and the rest of the app. */
+  function keyOfMidi(m){
+    var c = CHROMA[((Math.round(m) % 12) + 12) % 12];
+    return c[0] + (c[1] ? "#" : "") + "/" + sciOfMidi(m);
+  }
+
   /* scientific octave of a midi number: 60 -> 4 */
   function sciOfMidi(m){ return Math.floor(Math.round(m) / 12) - 1; }
 
@@ -112,6 +121,7 @@
     step: step,
     of: of,
     ofMidi: ofMidi,
+    keyOfMidi: keyOfMidi,
     sciOfMidi: sciOfMidi,
     sci: function(pitch){ return parse(pitch).oct; },
     octaveShort: octaveShort,

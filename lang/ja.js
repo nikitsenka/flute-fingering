@@ -93,8 +93,9 @@ window.I18N_STRINGS.ja = {
   "game.restart": "↺ 最初から",
   "game.piece": "曲",
   "game.add": "＋ ファイルから",
-  "game.add.title": "MusicXML (.mxl) を読み込む",
+  "game.add.title": "MusicXML (.mxl) または録音を読み込む",
   "game.formats": "{list} を読み込みます",
+  "game.listening": "録音を聴いています…",
   "game.tempo": "テンポ",
   "game.sound": "🔊 音",
   "game.setup": "⚙ 設定",
@@ -136,5 +137,17 @@ window.I18N_STRINGS.ja = {
   "import.err.noScore": "アーカイブの中に楽譜がありません",
   "import.err.noPart": "パートが見つかりません",
   "import.err.noNotes": "この段には音符がありません",
-  "import.err.empty": "ファイルに音符が見つかりませんでした"
+  "import.err.empty": "ファイルに音符が見つかりませんでした",
+
+  /* ---------- importing a recording ---------- */
+  "import.recording": "録音",
+  "import.audio.hint": "録音から旋律を 1 本聞き取りました。テンポを確認し、違うところは追加してから直してください。",
+  "import.audio.tempo": "聞き取ったテンポ：約 {bpm} 拍/分。",
+  "import.audio.mixed": "この録音では複数の楽器が同時に鳴っているため、音符はおおよそのものになります。",
+  "import.audio.wide": "音域が {spread} 半音あり、楽器の {span} 半音を超えています。一部がオクターブ違いで聞き取られたか、旋律ではなく低いパートを追ってしまったかのどちらかで、後者はオクターブの切り替えでは直りません。",
+  "import.audio.jumpy": "隣り合う音がちょうど 1 オクターブ跳ぶことが繰り返されています。多くは聞き取りのずれ——ときには別のパートへの乗り移り——であって、音楽自体の跳躍ではありません。",
+  "import.audio.below": "すべての音が楽器の音域より下に出ました。低い楽器の録音であればオクターブの切り替えで直りますが、旋律ではなく低いパートを追ってしまった場合は直りません。",
+  "import.err.noAudio": "このブラウザーは音声を復号できません",
+  "import.err.notAudio": "このファイルは音声として読めません",
+  "import.err.noPitch": "音高の検出が読み込まれていません"
 };

@@ -261,7 +261,7 @@
           var top = +(text(sig, "beats") || 4);
           var bottom = +(text(sig, "beat-type") || 4);
           time = top + "/" + bottom;
-          perBar = top * 4 / bottom;
+          perBar = global.DURATIONS.perBar(time);
         }
       }
 
