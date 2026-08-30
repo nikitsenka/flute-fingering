@@ -94,6 +94,7 @@ window.I18N_STRINGS.de = {
   "game.piece": "Stück",
   "game.add": "＋ Aus Datei",
   "game.add.title": "MusicXML (.mxl) laden",
+  "game.formats": "liest {list}",
   "game.tempo": "Tempo",
   "game.sound": "🔊 Ton",
   "game.setup": "⚙ Einstellungen",

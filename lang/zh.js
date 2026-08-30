@@ -91,6 +91,7 @@ window.I18N_STRINGS.zh = {
   "game.piece": "曲目",
   "game.add": "＋ 从文件",
   "game.add.title": "载入 MusicXML (.mxl)",
+  "game.formats": "可读取 {list}",
   "game.tempo": "速度",
   "game.sound": "🔊 声音",
   "game.setup": "⚙ 设置",

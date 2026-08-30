@@ -94,6 +94,7 @@ window.I18N_STRINGS.fr = {
   "game.piece": "morceau",
   "game.add": "＋ Depuis un fichier",
   "game.add.title": "Charger un MusicXML (.mxl)",
+  "game.formats": "lit {list}",
   "game.tempo": "tempo",
   "game.sound": "🔊 Son",
   "game.setup": "⚙ Réglages",

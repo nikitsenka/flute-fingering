@@ -94,6 +94,7 @@ window.I18N_STRINGS.ja = {
   "game.piece": "曲",
   "game.add": "＋ ファイルから",
   "game.add.title": "MusicXML (.mxl) を読み込む",
+  "game.formats": "{list} を読み込みます",
   "game.tempo": "テンポ",
   "game.sound": "🔊 音",
   "game.setup": "⚙ 設定",

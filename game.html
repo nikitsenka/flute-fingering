@@ -74,6 +74,9 @@
   /* Remove goes dim rather than away on the last piece: a button that
      vanishes reads as a bug, one that is dim reads as a rule */
   .btn:disabled{opacity:.45;cursor:default;box-shadow:none}
+  /* what From file accepts, said next to the button rather than only in a
+     tooltip -- a phone has no hover and never sees a title */
+  #formats{font-size:13px;opacity:.75;align-self:center}
   .btn:disabled:active{transform:none}
   .btn[aria-pressed="true"]{background:var(--pressed-bg);color:var(--pressed-fg)}
   .btn.go{background:var(--accent);color:var(--accent-on);min-width:112px}
@@ -999,6 +1002,23 @@
   restoreBtn.hidden = true;
   dropBtn.after(restoreBtn);
 
+  /* The list is read back out of the input's accept attribute, so the two
+     cannot drift: teach the page a new kind of file there and this says so
+     without being told twice. Wildcards like audio/* are skipped -- the
+     extensions beside them are the part a reader can check a file against. */
+  var formats = document.createElement("span");
+  formats.id = "formats";
+  fileInput.after(formats);
+
+  function showFormats(){
+    var list = (fileInput.getAttribute("accept") || "").split(",")
+      .map(function(a){ return a.trim(); })
+      .filter(function(a){ return a.charAt(0) === "."; });
+    formats.hidden = !list.length;
+    formats.textContent = list.length ? I18n.t("game.formats", {list: list.join(", ")}) : "";
+  }
+  showFormats();
+
   document.getElementById("add").addEventListener("click", function(){
     fileInput.value = "";       /* so re-picking the same file still fires */
     fileInput.click();
@@ -1191,6 +1211,7 @@
   function relabel(){
     I18n.apply(document);
     playBtn.textContent = I18n.t(playing ? "game.pause" : "game.play");
+    showFormats();
     renderTitle();
     refreshPicker(songSel.value);
 

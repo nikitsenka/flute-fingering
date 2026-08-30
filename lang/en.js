@@ -111,6 +111,7 @@ window.I18N_STRINGS.en = {
   "game.piece": "piece",
   "game.add": "＋ From file",
   "game.add.title": "Load MusicXML (.mxl)",
+  "game.formats": "reads {list}",
   "game.tempo": "tempo",
   "game.sound": "🔊 Sound",
   "game.setup": "⚙ Setup",

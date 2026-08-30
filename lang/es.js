@@ -94,6 +94,7 @@ window.I18N_STRINGS.es = {
   "game.piece": "pieza",
   "game.add": "＋ Desde archivo",
   "game.add.title": "Cargar MusicXML (.mxl)",
+  "game.formats": "lee {list}",
   "game.tempo": "tempo",
   "game.sound": "🔊 Sonido",
   "game.setup": "⚙ Ajustes",
