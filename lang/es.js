@@ -158,6 +158,7 @@ window.I18N_STRINGS.es = {
   "import.printed": "Partitura",
   "import.pdf.hint": "Las notas se leyeron de la página. Las duraciones aún no se leen: revísalas después de añadir.",
   "import.pdf.lengths": "Las duraciones no se leen de la página: cada nota entra como negra.",
+  "import.pdf.timed": "Las duraciones se leyeron de las plicas, los corchetes y las barras. Una blanca no se distingue de una negra, y un compás corto se completó con un silencio: el ritmo es aproximado, no exacto.",
   "import.pdf.accidentals": "Las alteraciones junto a una nota no se leen: una nota alterada llega como la natural.",
   "import.pdf.altered": "Se leyeron las alteraciones ({n}). Una alteración todavía no rige hasta el final del compás, así que una nota alterada repetida llega sin ella.",
   "import.pdf.staves": "{n} pentagramas se leyeron como una sola línea, de arriba abajo.",

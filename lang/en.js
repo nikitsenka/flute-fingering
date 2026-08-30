@@ -176,6 +176,7 @@ window.I18N_STRINGS.en = {
   "import.printed": "Sheet music",
   "import.pdf.hint": "The notes were read off the page. Lengths are not read yet — check them after adding.",
   "import.pdf.lengths": "Lengths are not read from the page: every note comes in as a quarter.",
+  "import.pdf.timed": "Lengths were read from the stems, flags and beams. A half note is not told from a quarter, and a bar that came up short was finished with a rest, so the rhythm is close rather than exact.",
   "import.pdf.accidentals": "Sharps and flats beside a note are not read, so an altered note arrives as the plain one.",
   "import.pdf.altered": "Sharps, flats and naturals were read ({n}). One does not carry to the rest of its bar yet, so a repeat of an altered note comes in plain.",
   "import.pdf.staves": "{n} staves were read as one line, top to bottom.",

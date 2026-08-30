@@ -158,6 +158,7 @@ window.I18N_STRINGS.de = {
   "import.printed": "Noten",
   "import.pdf.hint": "Die Noten wurden von der Seite gelesen. Notenlängen werden noch nicht gelesen — prüfen Sie sie nach dem Hinzufügen.",
   "import.pdf.lengths": "Notenlängen werden nicht von der Seite gelesen: jede Note kommt als Viertel an.",
+  "import.pdf.timed": "Die Notenlängen wurden aus Hälsen, Fähnchen und Balken gelesen. Eine halbe Note wird nicht von einer Viertel unterschieden, und ein zu kurzer Takt wurde mit einer Pause aufgefüllt — der Rhythmus ist also nah, aber nicht exakt.",
   "import.pdf.accidentals": "Vorzeichen neben einer Note werden nicht gelesen; eine alterierte Note kommt als die einfache an.",
   "import.pdf.altered": "Vorzeichen wurden gelesen ({n}). Ein Vorzeichen gilt noch nicht bis zum Taktende, eine Wiederholung der alterierten Note kommt daher ohne an.",
   "import.pdf.staves": "{n} Systeme wurden von oben nach unten als eine Linie gelesen.",

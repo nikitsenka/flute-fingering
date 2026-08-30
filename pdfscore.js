@@ -24,7 +24,12 @@
  *              map names them, and both conventions are understood. A key
  *              signature holds for its staff; one beside a head holds for that
  *              head and, for want of barlines, no further
- *   length     NOT read -- every note comes in as a quarter
+ *   length     read where the page shows it: a stem with a flag or a beam is
+ *              halved once per flag or beam, a dot beside the head adds half
+ *              again, and a head with no stem is a whole note. A hollow head is
+ *              not told from a filled one, so a half note arrives as a quarter
+ *              -- which the bar it sits in usually catches, since a bar that
+ *              does not add up is the sign that a length was guessed
  *
  * That is a fingering trainer's half of the problem: the pitches and their
  * order are what a player practises against, and an even beat is a usable
@@ -263,6 +268,49 @@
     }).map(function(r){ return r.code; });
   }
 
+  /* ---------- stems, beams, flags, dots ----------
+     What tells the lengths apart is structure, not the name of a glyph. A
+     notehead always has a stem beside it; a rest never does and sits at the
+     same height every time, because a rest has no pitch. A flag is drawn at
+     the far end of a stem and moves with it. A dot sits just to the right of a
+     head, at the head's own height. A beam is a filled bar across the ends of
+     several stems.
+
+     None of that needs to know which font this is, which is the point: the
+     accidentals could be read because a /ToUnicode map names a flat as the
+     letter b, but nothing names a quarter rest, and guessing from a memory of
+     one publisher's layout is how a reader becomes wrong on the next file. */
+  function stemsOf(page, staff){
+    return page.strokes.filter(function(t){
+      return t.w <= staff.step * 0.3 && t.h > staff.step * 0.8;
+    });
+  }
+
+  function hasStem(stems, t, staff){
+    return stems.some(function(v){
+      return Math.abs(v.x - t.x) < staff.step * 2 &&
+             Math.abs((v.y + v.h / 2) - t.y) < staff.step * 5;
+    });
+  }
+
+  /* A beam is wider than it is tall, filled, straight, and about a third of a
+     space thick; a bar of music is none of those things and a barline is
+     taller than it is wide. */
+  function beamsOf(page, staff){
+    return page.fills.filter(function(f){
+      return !f.curves && f.h >= staff.step * 0.15 && f.h <= staff.step * 1.2 &&
+             f.w >= staff.step && f.w <= staff.step * 40;
+    });
+  }
+
+  function beamsOver(beams, x, staff){
+    var n = 0;
+    beams.forEach(function(b){
+      if(x >= b.x - staff.step * 0.6 && x <= b.x + b.w + staff.step * 0.6){ n++; }
+    });
+    return n;
+  }
+
   function staffFor(y, list){
     var best = null, bestGap = Infinity;
     list.forEach(function(st, i){
@@ -313,8 +361,48 @@
     return ((n % 7) + 7) % 7;
   }
 
-  function glyphHeads(page, font, list){
-    var codes = headCodes(page, font, list);
+  /* Which codes are rests and which are flags, told apart by the stem: every
+     flag has one because it is drawn on one, and no rest ever does. A rest also
+     sits at the same height whenever it appears -- it has no pitch to follow. */
+  function vocabulary(page, font, list, heads, headCodes){
+    var stems = list.length ? stemsOf(page, list[0]) : [];
+    var seen = {};
+
+    page.texts.forEach(function(t){
+      if(t.font !== font.key){ return; }
+      var si = staffFor(t.y, list);
+      if(si === null){ return; }
+      var st = list[si];
+      var code = codeOf(t);
+      var v = seen[code] || (seen[code] = {n:0, stemmed:0, heights:{}, afterHead:0});
+      v.n++;
+      if(hasStem(stems, t, st)){ v.stemmed++; }
+      v.heights[Math.round((t.y - st.bottom) / (st.step / 2))] = true;
+      /* a dot is the thing that keeps turning up just right of a head, level
+         with it -- the one mark that follows another rather than the staff */
+      if(heads.some(function(h){
+        return h.staff === si && Math.abs(h.y - t.y) < st.step * 0.35 &&
+               t.x - h.x > 0 && t.x - h.x < st.step * 2.2;
+      })){ v.afterHead++; }
+    });
+
+    var rests = [], flags = [], dot = null, dotScore = 0;
+    Object.keys(seen).forEach(function(code){
+      /* a notehead is stemmed and wanders up and down like a flag does, so it
+         has to be taken out by name or every chord reads as a pile of flags */
+      if(headCodes.indexOf(+code) >= 0){ return; }
+      var v = seen[code], heights = Object.keys(v.heights).length;
+      if(v.n >= 2 && v.stemmed / v.n < 0.2 && heights <= 3){ rests.push(+code); }
+      else if(v.n >= 2 && v.stemmed / v.n > 0.8 && heights >= 3 && v.afterHead / v.n < 0.5){
+        flags.push(+code);
+      }
+      if(v.afterHead > dotScore && v.afterHead >= v.n * 0.6){ dotScore = v.afterHead; dot = +code; }
+    });
+
+    return {rests:rests, flags:flags, dot:dot, stems:stems};
+  }
+
+  function glyphHeads(page, font, list, codes){
     if(!codes.length){ return []; }
 
     var out = [];
@@ -380,6 +468,44 @@
     return global.Note.keyOfMidi(global.Note.midi(plain) + shift);
   }
 
+  /* ---------- barlines ----------
+     A barline runs the height of the staff, and on a piano system it runs
+     through both staves at once, which is why looking for one exactly as tall
+     as a single staff finds nothing. Fills as well as strokes: engravers draw
+     them either way. */
+  function barlinesOf(page, staff, heads){
+    var tol = staff.step * 0.5;
+    var high = staff.top - staff.bottom;
+    var out = [];
+
+    page.strokes.concat(page.fills).forEach(function(t){
+      if(t.w > staff.step * 0.9){ return; }
+      /* it has to reach both outer lines, not merely overlap the staff: a stem
+         is about as long as a staff is high and would pass a looser test */
+      if(t.y > staff.bottom + tol || t.y + t.h < staff.top - tol){ return; }
+      if(t.h < high * 0.95){ return; }
+      if(t.x < staff.x0 - staff.step || t.x > staff.x1 + staff.step){ return; }
+
+      /* and a stem stands at a notehead, where a barline never does */
+      var x = t.x + t.w / 2;
+      if(heads.some(function(h){ return Math.abs(h.x - x) < staff.step * 1.5; })){ return; }
+
+      out.push(x);
+    });
+
+    out.sort(function(a, b){ return a - b; });
+    return out.filter(function(x, i){ return i === 0 || x - out[i - 1] > staff.step; });
+  }
+
+  /* the lengths a written note can have here, longest first */
+  var LENGTHS = [4, 3, 2, 1.5, 1, 0.75, 0.5, 0.25];
+
+  function snap(beats){
+    return LENGTHS.reduce(function(best, l){
+      return Math.abs(l - beats) < Math.abs(best - beats) ? l : best;
+    }, 4);
+  }
+
   /* ---------- what is on the page ----------
      Staves are read top to bottom, page after page, and joined into one line.
      Two things are dropped on the way and both are counted for the report: the
@@ -388,9 +514,9 @@
      trainer plays one note at a time -- the same rule songimport.js applies to
      a chord in MusicXML. */
   function recognise(doc){
-    var notes = [];
+    var events = [];
     var staffCount = 0, usedStaves = 0, skipped = 0, chords = 0, fromGlyphs = false;
-    var accidentalsRead = 0;
+    var accidentalsRead = 0, timed = false, barCount = 0;
 
     doc.pages.forEach(function(page){
       var list = staves(page);
@@ -401,7 +527,8 @@
       var glyphs = font ? page.texts.filter(function(t){ return t.font === font.key; }) : [];
       list.forEach(function(st){ st.clef = font ? clefOf(st, glyphs) : "treble"; });
 
-      var found = font ? glyphHeads(page, font, list) : [];
+      var codes = font ? headCodes(page, font, list) : [];
+      var found = font ? glyphHeads(page, font, list, codes) : [];
       if(found.length){ fromGlyphs = true; } else { found = heads(page, list); }
 
       /* Accidentals, if the font said which glyph is which. Two kinds, and the
@@ -412,8 +539,7 @@
          A real accidental also holds to the end of its bar, which needs
          barlines this does not read yet -- so a repeated note after one comes
          back plain. That is a smaller error than ignoring accidentals
-         altogether, which is where this started, and the dialog says the
-         lengths are unread, which is the same bar. */
+         altogether, which is where this started. */
       var marks = font ? accidentals(page, font, list) : [];
       accidentalsRead += marks.length;
       var keys = {};
@@ -434,30 +560,197 @@
       usedStaves += wanted ? list.filter(function(st){ return st.clef === wanted; }).length
                            : list.length;
 
-      var lastX = null, lastStaff = null;
-      found.forEach(function(h){
-        var st = list[h.staff];
-        if(wanted && st.clef !== wanted){ skipped++; return; }
+      var vocab = font ? vocabulary(page, font, list, found, codes)
+                       : {rests:[], flags:[], dot:null, stems:[]};
+      var beams = list.length ? beamsOf(page, list[0]) : [];
 
-        /* heads stacked at one moment are a chord: keep the top note. They
-           arrive sorted by x, so "the same moment" is a gap of nearly nothing,
-           and the highest is whichever is further up the page. */
-        if(lastStaff === h.staff && lastX !== null && Math.abs(h.x - lastX) < st.step * 0.6){
-          chords++;
-          var prev = notes[notes.length - 1];
-          var here = pitchAt(h, st, shiftFor(h, st, marks, keys[h.staff]));
-          if(global.Note.midi(here) > global.Note.midi(prev)){ notes[notes.length - 1] = here; }
-          return;
+      /* a beam belongs to the staff it is drawn over; the bass staff of a piano
+         system carries its own, at the same places along the page */
+      function beamsNear(st){
+        return beams.filter(function(b){
+          return b.y > st.bottom - st.step * 6 && b.y < st.top + st.step * 6;
+        });
+      }
+
+      list.forEach(function(st, si){
+        var mine = found.filter(function(h){ return h.staff === si; });
+        if(wanted && st.clef !== wanted){ skipped += mine.length; return; }
+
+        var here = mine.map(function(h){
+          var len = lengthOf(h, st, glyphs, vocab, beamsNear(st), font);
+          return {staff:si, x:h.x, y:h.y, rest:false, beats:len.beats, guessed:len.guessed};
+        });
+
+        if(font){
+          glyphs.forEach(function(t){
+            if(vocab.rests.indexOf(codeOf(t)) < 0){ return; }
+            if(staffFor(t.y, list) !== si){ return; }
+            here.push({staff:si, x:t.x, y:t.y, rest:true, beats:null});
+          });
         }
-        notes.push(pitchAt(h, st, shiftFor(h, st, marks, keys[h.staff])));
-        lastX = h.x;
-        lastStaff = h.staff;
-      });
 
+        here.sort(function(a, b){ return a.x - b.x; });
+
+        /* heads stacked at one moment are a chord: keep the top note */
+        var flat = [];
+        here.forEach(function(e){
+          var last = flat[flat.length - 1];
+          if(last && Math.abs(e.x - last.x) < st.step * 0.6 && !e.rest && !last.rest){
+            chords++;
+            if(e.y > last.y){ last.y = e.y; last.beats = e.beats; last.guessed = e.guessed; }
+            return;
+          }
+          flat.push(e);
+        });
+
+        flat.forEach(function(e){
+          e.pitch = e.rest ? "R" : pitchAt(e, st, shiftFor(e, st, marks, keys[si]));
+        });
+
+        var edges = barlinesOf(page, st, mine);
+        var bars = intoBars(flat, edges);
+        if(bars.timed){ timed = true; }
+        barCount += bars.list.length;
+        bars.list.forEach(function(bar){ events.push(bar); });
+      });
     });
 
-    return {notes:notes, staves:staffCount, used:usedStaves, skipped:skipped,
-            chords:chords, glyphs:fromGlyphs, accidentals:accidentalsRead};
+    return {events:events, notes:pitchesOf(events), staves:staffCount, used:usedStaves,
+            skipped:skipped, chords:chords, glyphs:fromGlyphs, accidentals:accidentalsRead,
+            timed:timed, bars:barCount};
+  }
+
+  function pitchesOf(bars){
+    var out = [];
+    bars.forEach(function(bar){
+      bar.forEach(function(e){ if(e[0] !== "R"){ out.push(e[0]); } });
+    });
+    return out;
+  }
+
+  /* ---------- how long a note is ----------
+     A stem with nothing on it is a quarter. Every beam across it, or every flag
+     hanging off it, halves that; a dot beside the head adds half again. A head
+     with no stem at all is a whole note. What is not read is the difference
+     between a filled head and a hollow one, so a half note arrives as a
+     quarter unless its own glyph is a different code -- which is why the bar
+     that does not add up is padded rather than trusted. */
+  function lengthOf(head, staff, glyphs, vocab, beams, font){
+    if(!font){ return 1; }
+
+    /* the stem this head stands on: a flag hangs at its far end, which can be
+       three or four spaces away, so the search follows the stem rather than
+       guessing a distance from the head */
+    var stem = null;
+    vocab.stems.forEach(function(v){
+      if(Math.abs(v.x - head.x) > staff.step * 2){ return; }
+      if(head.y < v.y - staff.step || head.y > v.y + v.h + staff.step){ return; }
+      if(!stem || v.h > stem.h){ stem = v; }
+    });
+    if(!stem){ return 4; }                       /* no stem at all: a whole note */
+
+    var flags = 0, dotted = false;
+    glyphs.forEach(function(t){
+      var code = codeOf(t);
+      if(vocab.flags.indexOf(code) >= 0 && Math.abs(t.x - stem.x) < staff.step * 1.5 &&
+         t.y > stem.y - staff.step && t.y < stem.y + stem.h + staff.step){ flags++; }
+      if(vocab.dot !== null && code === vocab.dot &&
+         Math.abs(t.y - head.y) < staff.step * 0.35 &&
+         t.x - head.x > 0 && t.x - head.x < staff.step * 2.2){ dotted = true; }
+    });
+
+    var halvings = Math.max(flags, beamsOver(beams, head.x, staff));
+    var beats = 1 / Math.pow(2, Math.min(halvings, 4));
+    if(dotted){ beats *= 1.5; }
+    /* a plain stem with nothing on it is only a guess at a quarter -- it is
+       also what a half note looks like from here, and what an eighth looks like
+       when its beam was missed. The bar it sits in gets to correct it. */
+    return {beats:beats, guessed:!halvings && !dotted};
+  }
+
+  /* ---------- into bars ----------
+     The barlines say where a bar ends; the rule that a bar holds four beats
+     says how long the rests in it are, since nothing on the page names a rest's
+     length. Whatever a bar is short by is shared among its rests -- and if the
+     bars do not come out near four beats, the reading of the lengths was wrong
+     and the whole line falls back to a note a beat, which is at least honest. */
+  function intoBars(flat, edges){
+    var perBar = 4;
+    if(!edges.length || flat.length < 2){ return {list:evenBars(flat, perBar), timed:false}; }
+
+    var bars = [];
+    var cuts = edges.slice();
+    var bar = [];
+    var next = 0;
+
+    flat.forEach(function(e){
+      while(next < cuts.length && e.x > cuts[next]){
+        if(bar.length){ bars.push(bar); bar = []; }
+        next++;
+      }
+      bar.push(e);
+    });
+    if(bar.length){ bars.push(bar); }
+
+    var good = 0;
+    bars.forEach(function(b){
+      var notes = b.filter(function(e){ return !e.rest; });
+      var rests = b.filter(function(e){ return e.rest; });
+      var known = function(){
+        return notes.reduce(function(n, e){ return n + e.beats; }, 0);
+      };
+
+      /* Too much music for the bar means a length was guessed too long: the
+         plain stems are the guesses, so they are halved, longest first, until
+         the bar fits. A beamed or flagged note is evidence and is left alone. */
+      for(var pass = 0; pass < 8 && known() > perBar + 1e-9; pass++){
+        var worst = null;
+        notes.forEach(function(e){
+          if(e.guessed && e.beats > 0.25 && (!worst || e.beats > worst.beats)){ worst = e; }
+        });
+        if(!worst){ break; }
+        worst.beats /= 2;
+      }
+
+      if(rests.length){
+        var each = snap(Math.max(perBar - known(), 0) / rests.length);
+        rests.forEach(function(e){ e.beats = each; });
+      }
+
+      var sum = known() + rests.reduce(function(n, e){ return n + e.beats; }, 0);
+      if(Math.abs(sum - perBar) < 0.26){ good++; }
+    });
+
+    /* more than half the bars adding up is the sign that the lengths were read
+       rather than invented; anything less and this is not rhythm, it is noise */
+    if(good < bars.length * 0.5){ return {list:evenBars(flat, perBar), timed:false}; }
+
+    return {list:bars.map(function(b){
+      return b.map(function(e){ return [e.pitch, spell(e.beats)]; });
+    }), timed:true};
+  }
+
+  function evenBars(flat, perBar){
+    var out = [], bar = [], filled = 0;
+    flat.forEach(function(e){
+      if(filled >= perBar - 1e-9){ out.push(bar); bar = []; filled = 0; }
+      bar.push([e.pitch, "q"]);
+      filled += 1;
+    });
+    if(bar.length){ out.push(bar); }
+    return out;
+  }
+
+  /* beats -> the code durations.js knows, longest that fits */
+  function spell(beats){
+    var list = global.DURATIONS.list, best = list[list.length - 1];
+    for(var i = 0; i < list.length; i++){
+      if(Math.abs(list[i].beats - beats) < 1e-6){ return list[i].code; }
+    }
+    for(var j = 0; j < list.length; j++){
+      if(Math.abs(list[j].beats - beats) < Math.abs(best.beats - beats)){ best = list[j]; }
+    }
+    return best.code;
   }
 
   /* An accidental beside this head beats the key signature, which is what the
@@ -489,7 +782,7 @@
       used: {},
       /* what the page could not tell us, carried so the dialog can say it
          before the reader presses Add rather than after */
-      printed: {staves:seen.used, skipped:seen.skipped, lengths:false,
+      printed: {staves:seen.used, skipped:seen.skipped, lengths:seen.timed,
                 accidentals:seen.accidentals}
     };
 
@@ -513,50 +806,57 @@
   }
 
   /* ---------- into a piece ----------
-     Every note is a quarter, so the bars are however many quarters the
-     signature holds and the last one is padded with a rest. When lengths are
-     read this is the function that changes; nothing above it has to. */
+     The bars come out of the recogniser already, so this only has to shift the
+     octave, pad a bar that does not add up, and say what it had to assume. */
   function convert(doc, line, options){
     options = options || {};
     var shift = options.octave || 0;
 
     if(!doc.seen){ doc.seen = recognise(doc); }
-    var pitches = doc.seen.notes;
-    if(!pitches.length){ throw fail("import.err.noNotes", "there are no notes on this page"); }
+    var read = doc.seen.events;
+    if(!read.length){ throw fail("import.err.noNotes", "there are no notes on this page"); }
 
     var time = options.time || "4/4";
     var perBar = global.DURATIONS.perBar(time);
-    var measures = [];
-    var used = {};
-    var filled = 0;
+    var beats = global.DURATIONS.beats;
+    var measures = [], used = {}, padded = 0;
 
-    function push(pitch, beats){
-      if(!measures.length || filled >= perBar - 1e-9){
-        measures.push({n:measures.length + 1, notes:[], beams:[], ties:[], slurs:[],
-                       bar:null, repeat:null, sys:0});
-        filled = 0;
+    read.forEach(function(bar, i){
+      var notes = [], sum = 0;
+      bar.forEach(function(e){
+        var pitch = shiftPitch(e[0], shift);
+        notes.push([pitch, e[1]]);
+        sum += beats[e[1]] || 0;
+        if(pitch !== "R"){ used[pitch] = true; }
+      });
+
+      /* a bar the page did not fill -- a length this cannot read yet, or a
+         voice that is not the melody -- is finished with a rest rather than
+         left short, since every bar the game plays has to be a whole one */
+      while(sum < perBar - 1e-9){
+        var want = Math.min(perBar - sum, 4);
+        var code = spell(want);
+        notes.push(["R", code]);
+        sum += beats[code];
+        padded++;
       }
-      measures[measures.length - 1].notes.push([pitch, "q"]);
-      filled += beats;
-      if(pitch !== "R"){ used[pitch] = true; }
-    }
 
-    pitches.forEach(function(pitch){
-      var shifted = shiftPitch(pitch, shift);
-      push(shifted, 1);
+      measures.push({n:i + 1, notes:notes, beams:[], ties:[], slurs:[],
+                     bar:null, repeat:null, sys:0});
     });
 
-    while(filled > 1e-9 && filled < perBar - 1e-9){
-      measures[measures.length - 1].notes.push(["R", "q"]);
-      filled += 1;
-    }
-
+    if(!measures.length){ throw fail("import.err.noNotes", "there are no notes on this page"); }
     measures[measures.length - 1].bar = "double";
 
-    var problems = ["lengths are not read from the page: every note came in as a quarter"];
+    var problems = [];
+    problems.push(doc.seen.timed
+      ? "lengths were read from the stems and beams; a half note is not told from " +
+        "a quarter, so a bar that came up short was finished with a rest"
+      : "lengths are not read from the page: every note came in as a quarter");
     problems.push(doc.seen.accidentals
       ? doc.seen.accidentals + " sharp(s), flat(s) and natural(s) were read; one does not " +
-        "carry to the rest of its bar, since barlines are not read yet"
+        "carry to the rest of its bar, since barlines mark the bars but not the reach " +
+        "of an accidental here"
       : "sharps and flats beside a head were not read");
     if(doc.seen.used > 1){
       problems.push(doc.seen.used + " staves were read as one line, top to bottom");
@@ -566,6 +866,9 @@
     }
     if(doc.seen.chords){
       problems.push(doc.seen.chords + " head(s) stacked into chords: only the top note was kept");
+    }
+    if(padded){
+      problems.push(padded + " bar(s) were finished with a rest to make up the beats");
     }
 
     var list = Object.keys(used).sort(function(a, b){
@@ -577,7 +880,7 @@
       score: {key:options.key || "C", time:time, measures:measures, systems:[], crossSlurs:[]},
       report: {bars:measures.length, pitches:list, missing:missing, problems:problems,
                bpm:0, staves:doc.seen.staves, skipped:doc.seen.skipped,
-               chords:doc.seen.chords, glyphs:doc.seen.glyphs}
+               chords:doc.seen.chords, glyphs:doc.seen.glyphs, timed:doc.seen.timed}
     };
   }
 

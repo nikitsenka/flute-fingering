@@ -158,6 +158,7 @@ window.I18N_STRINGS.fr = {
   "import.printed": "Partition",
   "import.pdf.hint": "Les notes ont été lues sur la page. Les durées ne sont pas encore lues — vérifiez-les après l'ajout.",
   "import.pdf.lengths": "Les durées ne sont pas lues sur la page : chaque note arrive en noire.",
+  "import.pdf.timed": "Les durées ont été lues sur les hampes, les crochets et les ligatures. Une blanche n'est pas distinguée d'une noire, et une mesure trop courte a été complétée par un silence : le rythme est proche, pas exact.",
   "import.pdf.accidentals": "Les altérations à côté d'une note ne sont pas lues : une note altérée arrive telle quelle.",
   "import.pdf.altered": "Les altérations ont été lues ({n}). Une altération ne vaut pas encore jusqu'à la fin de la mesure : une note altérée répétée arrive sans elle.",
   "import.pdf.staves": "{n} portées ont été lues comme une seule ligne, de haut en bas.",

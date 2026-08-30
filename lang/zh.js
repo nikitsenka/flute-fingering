@@ -151,6 +151,7 @@ window.I18N_STRINGS.zh = {
   "import.printed": "乐谱",
   "import.pdf.hint": "音符已从页面读取。时值尚未读取——添加后请检查。",
   "import.pdf.lengths": "时值未从页面读取：每个音符都按四分音符加入。",
+  "import.pdf.timed": "时值依据符干、符尾和符杠读取。二分音符与四分音符无法区分，凑不满的小节用休止符补齐，因此节奏接近但不精确。",
   "import.pdf.accidentals": "音符旁的升降号未读取，变化音会按本位音加入。",
   "import.pdf.altered": "已读取 {n} 个升降还原记号。记号尚不延续到本小节其余部分，重复出现的变化音会按本位音加入。",
   "import.pdf.staves": "{n} 行谱表被自上而下读作一条旋律。",

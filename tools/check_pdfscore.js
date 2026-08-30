@@ -107,6 +107,9 @@ function readsAsScale(name){
     }, 0);
     var bars = made.score.measures.length;
     ok("six full bars of four", bars === 6 && beats === 24, bars + " bars, " + beats + " beats");
+    /* these pages carry no music font, so there is nothing to read a length
+       from: they must fall back to a note a beat and say so */
+    ok("the lengths fall back to quarters", !doc.seen.timed);
     ok("it says the lengths were not read",
        made.report.problems.some(function(p){ return /lengths are not read/.test(p); }));
     ok("it says three staves became one line",
@@ -156,6 +159,14 @@ function readsSomething(file){
     }
     var made = PdfScore.convert(doc, line, {octave:0});
     ok("it converts to bars", made.score.measures.length > 0, made.score.measures.length + " bars");
+    console.log("      lengths " + (seen.timed ? "read from the page" : "fell back to quarters"));
+    made.score.measures.slice(0, 4).forEach(function(m){
+      var beats = m.notes.reduce(function(n, note){
+        return n + sandbox.DURATIONS.beats[note[1]];
+      }, 0);
+      console.log("      bar " + m.n + " (" + beats + " beats): " +
+                  m.notes.map(function(n){ return n[0] + ":" + n[1]; }).join(" "));
+    });
   });
 }
 

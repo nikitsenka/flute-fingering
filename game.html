@@ -1227,7 +1227,9 @@
        part worth knowing: the pitches are read, the lengths are not. Better in
        front of the reader now than as a surprise on the first bar. */
     if(line.printed){
-      notes.push(I18n.t("import.pdf.lengths"));
+      notes.push(line.printed.lengths
+        ? I18n.t("import.pdf.timed")
+        : I18n.t("import.pdf.lengths"));
       notes.push(line.printed.accidentals
         ? I18n.t("import.pdf.altered", {n: line.printed.accidentals})
         : I18n.t("import.pdf.accidentals"));
