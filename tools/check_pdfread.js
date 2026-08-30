@@ -188,16 +188,36 @@ function checkLocked(){
 }
 
 function checkRubbish(){
-  var cases = {
-    "not a pdf": Buffer.from("this is a text file, not a document at all\n"),
-    "truncated": fs.readFileSync(path.join(SAMPLES, "sample-plain.pdf")).subarray(0, 40)
-  };
+  /* Refused is not enough: the reason reaches a player, and picking the wrong
+     file is the commonest way to arrive here. A file with no PDF header at all
+     used to be turned away several steps later as "nothing drawn on the page",
+     which is a true sentence about a JPEG and no use to anyone. So the two
+     cases that are plainly not PDFs name the answer they must give; a
+     truncated one may fail anywhere, and only has to fail. */
+  var junk = Buffer.alloc(400);
+  for(var i = 0; i < junk.length; i++){ junk[i] = (i * 37) % 251; }
+
+  var cases = [
+    {name:"a text file",   bytes:Buffer.from("this is a text file, not a document at all\n"),
+     want:"import.err.pdfNot"},
+    {name:"random bytes",  bytes:junk, want:"import.err.pdfNot"},
+    {name:"a header 1.5kB in", bytes:Buffer.concat([Buffer.alloc(1500), Buffer.from("%PDF-1.4\n")]),
+     want:"import.err.pdfNot"},
+    {name:"a truncated pdf", bytes:fs.readFileSync(path.join(SAMPLES, "sample-plain.pdf")).subarray(0, 40),
+     want:null}
+  ];
+
   var chain = Promise.resolve();
-  Object.keys(cases).forEach(function(name){
+  cases.forEach(function(c){
     chain = chain.then(function(){
-      return PdfRead.open(new Uint8Array(cases[name]), inflate).then(function(){
-        problems.push("rubbish accepted: " + name);
-      }, function(){ /* refused, which is the point */ });
+      return PdfRead.open(new Uint8Array(c.bytes), inflate).then(function(){
+        problems.push("rubbish accepted: " + c.name);
+      }, function(err){
+        if(c.want && err.i18n !== c.want){
+          problems.push(c.name + ": refused as " + (err.i18n || "an untranslated error") +
+                        ", expected " + c.want + " (" + err.message + ")");
+        }
+      });
     });
   });
   return chain;
@@ -227,7 +247,8 @@ chain.then(checkLocked).then(checkRubbish).then(function(){
     process.exit(1);
   }
   console.log("pdfread: ok -- 6 samples: marks where they were drawn, scans and "
-            + "watermarked scans read as scans, a protected file named as protected");
+            + "watermarked scans read as scans, a protected file named as protected,\n"
+            + "         and a file that is not a PDF said to be one rather than an empty page");
 }, function(err){
   console.error(err && err.stack || err);
   process.exit(1);

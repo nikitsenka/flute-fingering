@@ -563,7 +563,15 @@
   function open(bytes, inflate){
     if(!(bytes instanceof Uint8Array)){ bytes = new Uint8Array(bytes); }
     var doc = new Doc(bytes, inflate);
-    if(doc.s.indexOf("%PDF-") !== 0 && doc.s.indexOf("%PDF-") > 1024){
+    /* The header is normally the first five bytes, but a file that has been
+       concatenated or served with a preamble can carry it a little further in,
+       so a late one is tolerated. Missing entirely is the case that matters and
+       the one this used to get wrong: indexOf answers -1, which is neither zero
+       nor greater than a kilobyte, so a file of random bytes walked past this
+       test and was turned away further down as "nothing drawn on the page" --
+       true of a JPEG, and no help at all to someone who picked the wrong file. */
+    var header = doc.s.indexOf("%PDF-");
+    if(header < 0 || header > 1024){
       return Promise.reject(fail("this is not a PDF", "import.err.pdfNot"));
     }
     if(!Object.keys(doc.at).length){
