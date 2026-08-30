@@ -74,9 +74,10 @@
   /* Remove goes dim rather than away on the last piece: a button that
      vanishes reads as a bug, one that is dim reads as a rule */
   .btn:disabled{opacity:.45;cursor:default;box-shadow:none}
-  /* what From file accepts, said next to the button rather than only in a
-     tooltip -- a phone has no hover and never sees a title */
-  #formats{font-size:13px;opacity:.75;align-self:center}
+  /* what From file accepts, said in the toolbar rather than only in a tooltip
+     -- a phone has no hover and never sees a title. flex-basis puts it on a
+     line of its own under the buttons instead of in among them. */
+  #formats{flex-basis:100%;text-align:center;font-size:13px;opacity:.7}
   .btn:disabled:active{transform:none}
   .btn[aria-pressed="true"]{background:var(--pressed-bg);color:var(--pressed-fg)}
   .btn.go{background:var(--accent);color:var(--accent-on);min-width:112px}
@@ -1008,14 +1009,20 @@
      extensions beside them are the part a reader can check a file against. */
   var formats = document.createElement("span");
   formats.id = "formats";
-  fileInput.after(formats);
+  document.getElementById("setup").appendChild(formats);
 
   function showFormats(){
     var list = (fileInput.getAttribute("accept") || "").split(",")
       .map(function(a){ return a.trim(); })
       .filter(function(a){ return a.charAt(0) === "."; });
     formats.hidden = !list.length;
-    formats.textContent = list.length ? I18n.t("game.formats", {list: list.join(", ")}) : "";
+    if(!list.length){ formats.textContent = ""; return; }
+    var text = I18n.t("game.formats", {list: list.join(", ")});
+    /* I18n.t answers with the key when it has no translation for it, which is
+       what a browser holding a cached lang file from before this line existed
+       will do. The list on its own still tells the reader what to pick; the
+       key tells them nothing. */
+    formats.textContent = text === "game.formats" ? list.join(", ") : text;
   }
   showFormats();
 
