@@ -81,6 +81,13 @@
        this table's existing entries note for note, so the reading of its
        notation is not a guess.
 
+       That source writes the thumb two ways, T and B, and F-sharp 6 is the one
+       note here that gets B while its neighbours get T. It is the same key:
+       every row of either kind draws the same thumb in the source's own
+       diagram, and only its B-flat rows draw the other one. So T and B both
+       come across as the thumb B key and thumbBb stays for the lever, which is
+       what the rest of this table already did.
+
        It stops at A6. B-flat 6 and B6 want the right-hand D and D-sharp trill
        keys, and C7 wants the gizmo of a B-foot flute; the diagram has none of
        those three keys, and drawing a fingering that leaves out a key it needs
