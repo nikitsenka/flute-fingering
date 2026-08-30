@@ -107,6 +107,7 @@ function readsAsScale(name){
     }, 0);
     var bars = made.score.measures.length;
     ok("six full bars of four", bars === 6 && beats === 24, bars + " bars, " + beats + " beats");
+    ok("every bar adds up", short(made) === 0, short(made) + " bar(s) do not");
     /* these pages carry no music font, so there is nothing to read a length
        from: they must fall back to a note a beat and say so */
     ok("the lengths fall back to quarters", !doc.seen.timed);
@@ -159,6 +160,7 @@ function readsSomething(file){
     }
     var made = PdfScore.convert(doc, line, {octave:0});
     ok("it converts to bars", made.score.measures.length > 0, made.score.measures.length + " bars");
+    ok("every bar adds up", short(made) === 0, short(made) + " bar(s) do not");
     console.log("      lengths " + (seen.timed ? "read from the page" : "fell back to quarters"));
     made.score.measures.slice(0, 4).forEach(function(m){
       var beats = m.notes.reduce(function(n, note){
@@ -168,6 +170,22 @@ function readsSomething(file){
                   m.notes.map(function(n){ return n[0] + ":" + n[1]; }).join(" "));
     });
   });
+}
+
+/* A bar that is not the length it says it is puts the game's bar counter out
+   of step with the music from there on, and check_songs.js would refuse the
+   same piece in songs.js. So it is checked here, whatever the lengths came
+   from. */
+function short(made){
+  var per = sandbox.DURATIONS.perBar(made.score.time);
+  var bad = 0;
+  made.score.measures.forEach(function(m){
+    var beats = m.notes.reduce(function(n, note){
+      return n + (sandbox.DURATIONS.beats[note[1]] || 0);
+    }, 0);
+    if(Math.abs(beats - per) > 1e-6){ bad++; }
+  });
+  return bad;
 }
 
 function refuses(name, why){

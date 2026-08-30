@@ -700,30 +700,57 @@
         return notes.reduce(function(n, e){ return n + e.beats; }, 0);
       };
 
-      /* Too much music for the bar means a length was guessed too long: the
-         plain stems are the guesses, so they are halved, longest first, until
-         the bar fits. A beamed or flagged note is evidence and is left alone. */
-      for(var pass = 0; pass < 8 && known() > perBar + 1e-9; pass++){
+      /* Every rest has to be worth something, so the notes have to leave room
+         for it -- a sixteenth each is the least a rest can be. */
+      var room = perBar - rests.length * 0.25;
+
+      /* Too much music for the bar means a length was read too long. The plain
+         stems are the guesses and go first, longest one at a time; if the bar
+         still will not fit, the flagged and beamed ones are halved too, because
+         a bar of four and a quarter beats is not a rhythm at all -- the game
+         counts bars by dividing beats by the bar length, and one bar too long
+         puts every bar after it out of step with the music. */
+      for(var pass = 0; pass < 24 && known() > room + 1e-9; pass++){
         var worst = null;
         notes.forEach(function(e){
           if(e.guessed && e.beats > 0.25 && (!worst || e.beats > worst.beats)){ worst = e; }
         });
+        if(!worst){
+          notes.forEach(function(e){
+            if(e.beats > 0.25 && (!worst || e.beats > worst.beats)){ worst = e; }
+          });
+        }
         if(!worst){ break; }
         worst.beats /= 2;
       }
 
+      /* whatever is left belongs to the rests, in equal shares that a notation
+         can spell; any dust from that goes on the last of them */
       if(rests.length){
-        var each = snap(Math.max(perBar - known(), 0) / rests.length);
+        var left = Math.max(perBar - known(), rests.length * 0.25);
+        var each = snap(left / rests.length);
         rests.forEach(function(e){ e.beats = each; });
+        var over = known() + each * rests.length - perBar;
+        var last = rests[rests.length - 1];
+        if(over > 1e-9 && last.beats - over >= 0.25){ last.beats = snap(last.beats - over); }
       }
 
       var sum = known() + rests.reduce(function(n, e){ return n + e.beats; }, 0);
-      if(Math.abs(sum - perBar) < 0.26){ good++; }
+      if(Math.abs(sum - perBar) < 1e-6){ good++; }
     });
 
     /* more than half the bars adding up is the sign that the lengths were read
        rather than invented; anything less and this is not rhythm, it is noise */
     if(good < bars.length * 0.5){ return {list:evenBars(flat, perBar), timed:false}; }
+
+    /* A bar that still does not add up is not shipped as it is: it goes back to
+       a note a beat, which is wrong in one bar rather than wrong from that bar
+       onwards. convert() finishes anything still short with a rest. */
+    bars = bars.map(function(b){
+      var sum = b.reduce(function(n, e){ return n + e.beats; }, 0);
+      if(Math.abs(sum - perBar) < 1e-6 || b.length > perBar){ return b; }
+      return b.map(function(e){ return {pitch:e.pitch, beats:1, rest:e.rest}; });
+    });
 
     return {list:bars.map(function(b){
       return b.map(function(e){ return [e.pitch, spell(e.beats)]; });
