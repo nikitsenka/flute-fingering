@@ -108,6 +108,8 @@ window.I18N_STRINGS.ru = {
   "game.staffCard": "на нотном стане",
   "game.drop": "✕ Убрать",
   "game.drop.title": "Убрать загруженную пьесу",
+  "game.restore": "↺ Вернуть",
+  "game.restore.title": "Вернуть убранные пьесы",
   "game.done": "Готово! ↺ чтобы повторить",
   "game.failed": "Не вышло: {why}",
   "game.added.missing": {one: "Добавлено, но для {n} ноты нет аппликатуры: {notes}",

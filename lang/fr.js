@@ -101,6 +101,8 @@ window.I18N_STRINGS.fr = {
   "game.staffCard": "sur la portée",
   "game.drop": "✕ Retirer",
   "game.drop.title": "Retirer le morceau chargé",
+  "game.restore": "↺ Restaurer",
+  "game.restore.title": "Remettre les morceaux retirés",
   "game.done": "Terminé ! ↺ pour recommencer",
   "game.failed": "Ça n'a pas marché : {why}",
   "game.added.missing": {one: "Ajouté, mais {n} note n'a pas de doigté : {notes}",

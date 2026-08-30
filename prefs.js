@@ -5,7 +5,7 @@
  * and falls back to the default.
  *
  * Keys in use: flute.lang, flute.theme, flute.instrument, flute.song,
- * flute.userSongs.
+ * flute.userSongs, flute.hiddenSongs.
  */
 (function(global){
   "use strict";

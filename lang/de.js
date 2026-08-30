@@ -101,6 +101,8 @@ window.I18N_STRINGS.de = {
   "game.staffCard": "im Notensystem",
   "game.drop": "✕ Entfernen",
   "game.drop.title": "Das geladene Stück entfernen",
+  "game.restore": "↺ Zurückholen",
+  "game.restore.title": "Entfernte Stücke zurückholen",
   "game.done": "Fertig! ↺ für noch einmal",
   "game.failed": "Hat nicht geklappt: {why}",
   "game.added.missing": {one: "Hinzugefügt, aber für {n} Note gibt es keine Griffe: {notes}",

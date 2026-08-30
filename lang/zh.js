@@ -98,6 +98,8 @@ window.I18N_STRINGS.zh = {
   "game.staffCard": "五线谱",
   "game.drop": "✕ 移除",
   "game.drop.title": "移除已载入的曲目",
+  "game.restore": "↺ 恢复",
+  "game.restore.title": "恢复已移除的曲目",
   "game.done": "完成！↺ 再来一次",
   "game.failed": "没有成功：{why}",
   "game.added.missing": {other: "已添加，但有 {n} 个音符没有指法：{notes}"},

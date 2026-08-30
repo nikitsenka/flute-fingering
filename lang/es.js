@@ -101,6 +101,8 @@ window.I18N_STRINGS.es = {
   "game.staffCard": "en el pentagrama",
   "game.drop": "✕ Quitar",
   "game.drop.title": "Quitar la pieza cargada",
+  "game.restore": "↺ Restaurar",
+  "game.restore.title": "Devolver las piezas quitadas",
   "game.done": "¡Listo! ↺ para repetir",
   "game.failed": "No salió: {why}",
   "game.added.missing": {one: "Añadida, pero {n} nota no tiene digitación: {notes}",

@@ -118,6 +118,8 @@ window.I18N_STRINGS.en = {
   "game.staffCard": "on the staff",
   "game.drop": "✕ Remove",
   "game.drop.title": "Remove the loaded piece",
+  "game.restore": "↺ Restore",
+  "game.restore.title": "Bring back the pieces you removed",
   "game.done": "Done! ↺ to play it again",
   "game.failed": "Didn't work: {why}",
   "game.added.missing": {one: "Added, but {n} note has no fingering: {notes}",

@@ -101,6 +101,8 @@ window.I18N_STRINGS.ja = {
   "game.staffCard": "五線上",
   "game.drop": "✕ 削除",
   "game.drop.title": "読み込んだ曲を削除する",
+  "game.restore": "↺ 戻す",
+  "game.restore.title": "取り除いた曲を戻します",
   "game.done": "おしまい！ ↺ でもう一度",
   "game.failed": "できませんでした：{why}",
   "game.added.missing": {other: "追加しました。ただし {n} 音に運指がありません：{notes}"},

@@ -71,6 +71,10 @@
     box-shadow:2px 3px 0 var(--shadow);
   }
   .btn:active{transform:translate(2px,3px);box-shadow:0 0 0 rgba(0,0,0,0)}
+  /* Remove goes dim rather than away on the last piece: a button that
+     vanishes reads as a bug, one that is dim reads as a rule */
+  .btn:disabled{opacity:.45;cursor:default;box-shadow:none}
+  .btn:disabled:active{transform:none}
   .btn[aria-pressed="true"]{background:var(--pressed-bg);color:var(--pressed-fg)}
   .btn.go{background:var(--accent);color:var(--accent-on);min-width:112px}
   .tempo{
@@ -904,6 +908,7 @@
   /* ---------- the picker ---------- */
   var STORE_KEY = "flute.song";
   var MINE_KEY = "flute.userSongs";      /* pieces loaded from a file */
+  var HIDDEN_KEY = "flute.hiddenSongs";  /* built-in pieces taken off the list */
   var songSel = document.getElementById("song");
 
   var remembered = Prefs.get;        /* shared with the other two pages */
@@ -917,6 +922,16 @@
     if(s && s.id && s.score){ SONGS.push({id:s.id, title:s.title, score:s.score, mine:true}); }
   });
 
+  /* A built-in piece cannot be deleted -- it lives in songs.js, which the next
+     visit loads again -- so removing one means remembering that this reader
+     does not want to see it, and Restore forgets that. An imported piece is
+     the reader's own and really does go. */
+  var hidden = remembered(HIDDEN_KEY, []);
+  if(Object.prototype.toString.call(hidden) !== "[object Array]"){ hidden = []; }
+
+  function onList(s){ return hidden.indexOf(s.id) < 0; }
+  function listed(){ return SONGS.filter(onList); }
+
   function songById(id){
     for(var i = 0; i < SONGS.length; i++){
       if(SONGS[i].id === id){ return SONGS[i]; }
@@ -926,14 +941,22 @@
 
   function refreshPicker(selected){
     songSel.innerHTML = "";
-    SONGS.forEach(function(s){
+    /* the piece being played stays in the list even if it was removed --
+       notes.html can link back to one with ?song=, and a picker that does not
+       contain what it is showing reads as broken */
+    var shown = listed();
+    var cur = songById(selected);
+    if(cur && shown.indexOf(cur) < 0){ shown = shown.concat([cur]); }
+    shown.forEach(function(s){
       var opt = document.createElement("option");
       opt.value = s.id;
       opt.textContent = s.mine ? songTitle(s) + " ●" : songTitle(s);
       songSel.appendChild(opt);
     });
     songSel.value = selected;
-    dropBtn.hidden = !(songById(selected) || {}).mine;
+    /* the last piece standing has to stay: an empty picker has nothing to load */
+    dropBtn.disabled = shown.length < 2;
+    restoreBtn.hidden = !hidden.length;
   }
 
   songSel.addEventListener("change", function(){
@@ -941,7 +964,7 @@
     if(!s){ return; }
     stop();
     keep(STORE_KEY, s.id);
-    dropBtn.hidden = !s.mine;
+    refreshPicker(s.id);
     loadSong(s);
   });
 
@@ -962,8 +985,19 @@
   dropBtn.title = I18n.t("game.drop.title");
   dropBtn.setAttribute("data-i18n", "game.drop");
   dropBtn.setAttribute("data-i18n-title", "game.drop.title");
-  dropBtn.hidden = true;
   document.getElementById("add").after(dropBtn);
+
+  /* only worth showing once something has been removed */
+  var restoreBtn = document.createElement("button");
+  restoreBtn.className = "btn";
+  restoreBtn.type = "button";
+  restoreBtn.id = "restore";
+  restoreBtn.textContent = I18n.t("game.restore");
+  restoreBtn.title = I18n.t("game.restore.title");
+  restoreBtn.setAttribute("data-i18n", "game.restore");
+  restoreBtn.setAttribute("data-i18n-title", "game.restore.title");
+  restoreBtn.hidden = true;
+  dropBtn.after(restoreBtn);
 
   document.getElementById("add").addEventListener("click", function(){
     fileInput.value = "";       /* so re-picking the same file still fires */
@@ -1127,15 +1161,27 @@
 
   dropBtn.addEventListener("click", function(){
     var current = songById(songSel.value);
-    if(!current || !current.mine){ return; }
+    if(!current || listed().length < 2){ return; }
     stop();
-    SONGS = SONGS.filter(function(s){ return s.id !== current.id; });
-    mine = mine.filter(function(s){ return s.id !== current.id; });
-    keep(MINE_KEY, mine);
-    var next = SONGS[0];
+    if(current.mine){
+      SONGS = SONGS.filter(function(s){ return s.id !== current.id; });
+      mine = mine.filter(function(s){ return s.id !== current.id; });
+      keep(MINE_KEY, mine);
+    } else {
+      hidden = hidden.concat([current.id]);
+      keep(HIDDEN_KEY, hidden);
+    }
+    var next = listed()[0];
     keep(STORE_KEY, next.id);
     refreshPicker(next.id);
     loadSong(next);
+  });
+
+  restoreBtn.addEventListener("click", function(){
+    if(!hidden.length){ return; }
+    hidden = [];
+    keep(HIDDEN_KEY, hidden);
+    refreshPicker(songSel.value);
   });
 
   /* ---------- switching language ----------
@@ -1209,7 +1255,7 @@
 
   /* notes.html links back with ?song=<id>, so honour that before the memory */
   var fromUrl = new URLSearchParams(location.search).get("song");
-  var initial = songById(fromUrl) || songById(remembered(STORE_KEY, null)) || SONGS[0];
+  var initial = songById(fromUrl) || songById(remembered(STORE_KEY, null)) || listed()[0];
   refreshPicker(initial.id);
 
   I18n.apply(document);      /* the markup ships English; fill in the rest */
