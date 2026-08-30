@@ -68,7 +68,33 @@
     "g#/5": ["thumbB", "lh1", "lh2", "lh3", "gsharp", "eb"],
     "a/5":  ["thumbB", "lh1", "lh2", "eb"],
     "a#/5": ["thumbB", "lh1", "rh1", "eb"],
-    "b/5":  ["thumbB", "lh1", "eb"]
+    "b/5":  ["thumbB", "lh1", "eb"],
+
+    /* Third octave. C6 and C#6 are the second octave's own fingerings again --
+       the note changes, the hands do not -- and from D6 the register has its
+       own chart: harmonics, with the thumb off for G6 and G#6, which is what
+       makes them sound rather than a mistake in the table.
+
+       Taken from the Woodwind Fingering Guide's basic chart (wfg.woodwind.org,
+       flute, third octave) and checked the only way that means anything here:
+       the same source's second-octave chart was read the same way and matched
+       this table's existing entries note for note, so the reading of its
+       notation is not a guess.
+
+       It stops at A6. B-flat 6 and B6 want the right-hand D and D-sharp trill
+       keys, and C7 wants the gizmo of a B-foot flute; the diagram has none of
+       those three keys, and drawing a fingering that leaves out a key it needs
+       would teach the wrong grip. */
+    "c/6":  ["lh1", "eb"],
+    "c#/6": ["eb"],
+    "d/6":  ["thumbB", "lh2", "lh3", "eb"],
+    "d#/6": ["thumbB", "lh1", "lh2", "lh3", "gsharp", "rh1", "rh2", "rh3", "eb"],
+    "e/6":  ["thumbB", "lh1", "lh2", "rh1", "rh2", "eb"],
+    "f/6":  ["thumbB", "lh1", "lh3", "rh1", "eb"],
+    "f#/6": ["thumbB", "lh1", "lh3", "rh3", "eb"],
+    "g/6":  ["lh1", "lh2", "lh3", "eb"],
+    "g#/6": ["lh2", "lh3", "gsharp", "eb"],
+    "a/6":  ["thumbB", "lh2", "rh1", "eb"]
   };
 
   var W = 24, H = 80;                 // diagram box, head joint at the top
@@ -232,7 +258,7 @@
   global.Instruments.register({
     id: "flute",
     nameKey: "instrument.flute",
-    range: {lo:60, hi:83},                    /* c/4 .. b/5 */
+    range: {lo:60, hi:93},                    /* c/4 .. a/6 */
     has: function(pitch){ return !!FINGERINGS[pitch]; },
     clefFor: function(){ return "treble"; },  /* the flute never leaves it */
 
