@@ -345,12 +345,21 @@
     var inst = instrument();
     var LOWEST  = inst ? inst.range.lo : 60;
     var HIGHEST = inst ? inst.range.hi : 83;
+    /* Ties go to the smallest move, and "as is" wins them all. The search used
+       to start at -2 and keep the first best score, so a line that already
+       fitted the instrument scored the same at -1 as at 0 and was carried an
+       octave down for no reason -- which is what "the notes are very low"
+       turned out to mean. */
     var best = 0, bestScore = -1;
     for(var shift = -2; shift <= 2; shift++){
       var lo = line.lo + shift * 12, hi = line.hi + shift * 12;
       var inside = Math.max(0, Math.min(hi, HIGHEST) - Math.max(lo, LOWEST) + 1);
       var score = inside / (hi - lo + 1);
-      if(score > bestScore){ bestScore = score; best = shift; }
+      if(score > bestScore + 1e-9 ||
+         (Math.abs(score - bestScore) < 1e-9 && Math.abs(shift) < Math.abs(best))){
+        bestScore = score;
+        best = shift;
+      }
     }
     return best;
   }
