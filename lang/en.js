@@ -181,7 +181,7 @@ window.I18N_STRINGS.en = {
   "import.pdf.altered": "Sharps, flats and naturals were read ({n}). One does not carry to the rest of its bar yet, so a repeat of an altered note comes in plain.",
   "import.pdf.staves": "{n} staves were read as one line, top to bottom.",
   "import.pdf.bass": "{n} note(s) on staves in another clef — the left hand of a piano part — were left out.",
-  "import.pdf.scanned": "Read off a picture of the page: about one note in ten may be missing, and no rhythm was read at all. Check it against the paper before learning from it.",
+  "import.pdf.scanned": "Read off a picture of the page: about one note in ten may be missing, and the rhythm is a reading of the ink rather than the printed lengths. Check it against the paper before learning from it.",
   "import.err.pdfScan": "this PDF is a scan, not an engraving",
   "import.err.pdfLocked": "this PDF is password-protected",
   "import.err.pdfNot": "this file is not a PDF",

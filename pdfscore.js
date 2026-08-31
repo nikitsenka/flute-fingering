@@ -154,7 +154,10 @@
             staves += got.staves.length;
             systems += got.systems.length;
             played += got.wanted.length;
-            got.notes.forEach(function(n){ notes.push(global.PdfScan.pitchOf(n)); });
+            got.notes.forEach(function(n){
+              notes.push(n.rest ? {pitch:"R", beats:null}
+                                : {pitch:global.PdfScan.pitchOf(n), beats:n.beats});
+            });
           }, function(){ /* an image that will not decode is not a page of music */ });
         });
       });
@@ -560,10 +563,15 @@
        are no stems to measure here and no glyphs to name, so every note is a
        quarter and the dialog says as much. */
     if(doc.scan){
-      var flat = doc.scan.notes.map(function(pitch){ return {pitch:pitch, rest:false, beats:1}; });
-      return {events:evenBars(flat, 4), notes:doc.scan.notes.slice(),
+      var flat = doc.scan.notes.map(function(n){
+        return {pitch:n.pitch, rest:n.pitch === "R", beats:n.beats};
+      });
+      var timed = flat.some(function(e){ return e.beats && e.beats !== 1; });
+      return {events:packBars(flat, 4), notes:doc.scan.notes.filter(function(n){
+                return n.pitch !== "R";
+              }).map(function(n){ return n.pitch; }),
               staves:doc.scan.staves, used:doc.scan.played, skipped:0, chords:0,
-              glyphs:false, accidentals:0, timed:false, bars:0, scanned:true};
+              glyphs:false, accidentals:0, timed:timed, bars:0, scanned:true};
     }
 
     var events = [];
@@ -807,6 +815,48 @@
     return {list:bars.map(function(b){
       return b.map(function(e){ return [e.pitch, spell(e.beats)]; });
     }), timed:true};
+  }
+
+  /* ---------- filling bars from lengths that were measured ----------
+     A scan gives a length for every note but nothing for a rest -- the page
+     does not say how long a rest is in a way this can read yet -- so a rest
+     takes whatever is left of the bar it is in. A note that will not fit what
+     is left starts the next bar, and the one it leaves behind is finished with
+     a rest, because every bar the game plays has to be whole. */
+  function packBars(flat, perBar){
+    /* A piece does not open with a bar of silence: a rest before the first note
+       is either something misread on a title page or a rest belonging to a bar
+       whose notes were not found, and either way it is not music. */
+    while(flat.length && flat[0].rest){ flat = flat.slice(1); }
+
+    var bars = [], bar = [], filled = 0;
+
+    function close(){
+      if(!bar.length){ return; }
+      while(filled < perBar - 1e-9){
+        var want = Math.min(perBar - filled, 4);
+        bar.push(["R", spell(want)]);
+        filled += global.DURATIONS.beats[spell(want)];
+      }
+      bars.push(bar);
+      bar = [];
+      filled = 0;
+    }
+
+    flat.forEach(function(e){
+      var beats = e.beats;
+      if(e.rest || !beats){
+        beats = perBar - filled;
+        if(beats < 0.25){ close(); beats = perBar; }
+      }
+      if(filled + beats > perBar + 1e-9){ close(); }
+      if(beats > perBar){ beats = perBar; }
+      bar.push([e.rest ? "R" : e.pitch, spell(beats)]);
+      filled += global.DURATIONS.beats[spell(beats)];
+      if(filled >= perBar - 1e-9){ close(); }
+    });
+    close();
+    return bars;
   }
 
   function evenBars(flat, perBar){

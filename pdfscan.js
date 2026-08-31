@@ -338,6 +338,89 @@
     return out;
   }
 
+  /* ---------- how long a note is ----------
+     The page says it the same way an engraving does, only in ink rather than in
+     coordinates: a hollow head is a half note, a dot beside the head adds half
+     again, and every beam or flag on the stem halves it. So the stem is
+     followed to its far end and the bands crossing it are counted.
+
+     What is not read is which of two shapes at a stem's end is a flag and which
+     is a beam -- both are ink across the stem, and for the length it makes no
+     difference, since one flag and one beam both mean an eighth. */
+  function stemOf(ink, w, h, at, step){
+    var from = Math.max(0, Math.round(at.x - step * 0.9));
+    var to = Math.min(w - 1, Math.round(at.x + step * 0.9));
+    var cy = Math.round(at.y);
+    var best = null;
+
+    for(var x = from; x <= to; x++){
+      var up = 0, down = 0, y;
+      for(y = Math.round(cy - step * 0.55); y >= 0 && ink[y * w + x]; y--){ up++; }
+      for(y = Math.round(cy + step * 0.55); y < h && ink[y * w + x]; y++){ down++; }
+      if(up >= step * 1.8 && narrow(ink, w, x, Math.round(cy - step * 1.6), step)){
+        if(!best || up > best.length){ best = {x:x, length:up, tip:Math.round(cy - step * 0.55) - up, up:true}; }
+      }
+      if(down >= step * 1.8 && narrow(ink, w, x, Math.round(cy + step * 1.6), step)){
+        if(!best || down > best.length){ best = {x:x, length:down, tip:Math.round(cy + step * 0.55) + down, up:false}; }
+      }
+    }
+    return best;
+  }
+
+  /* Ink crossing the stem near its end is a beam or a flag, and how thick it
+     is says how many. Measured over the page this was built against: a single
+     beam is about ten pixels deep against a staff space of eighteen and a
+     half, a double one seventeen or eighteen, and nothing at all sits between
+     fourteen and fifteen. So half a space is the line between one and two. */
+  function beamsOn(ink, w, h, stem, step){
+    if(!stem){ return 0; }
+    var x = stem.x + (stem.up ? 1 : -1);
+    if(x < 0 || x >= w){ x = stem.x; }
+
+    var from = stem.up ? stem.tip : Math.round(stem.tip - step * 1.8);
+    var to = stem.up ? Math.round(stem.tip + step * 1.8) : stem.tip;
+    var thickest = 0, run = 0;
+
+    for(var y = Math.max(0, from); y <= Math.min(h - 1, to); y++){
+      var wide = false;
+      if(ink[y * w + x]){
+        var left = x, right = x;
+        while(left > 0 && ink[y * w + left - 1]){ left--; }
+        while(right < w - 1 && ink[y * w + right + 1]){ right++; }
+        wide = (right - left + 1) >= step * 0.9;
+      }
+      if(wide){ run++; if(run > thickest){ thickest = run; } } else { run = 0; }
+    }
+
+    if(thickest < step * 0.25){ return 0; }
+    return thickest >= step * 0.75 ? 2 : 1;
+  }
+
+  /* A dot sits just right of the head, level with it, and is small. */
+  function dotted(ink, w, h, at, step){
+    /* A dot is a small round mark clear of the head, level with it. The window
+       starts a space away so the stem is not it, and what it finds has to be
+       short across -- a slur through the same place runs on and on, and the
+       next note's head is far wider than a dot. */
+    var y0 = Math.round(at.y - step * 0.25), y1 = Math.round(at.y + step * 0.25);
+    var x0 = Math.round(at.x + step * 0.9), x1 = Math.round(at.x + step * 1.7);
+
+    for(var y = Math.max(0, y0); y <= Math.min(h - 1, y1); y++){
+      for(var x = Math.max(0, x0); x <= Math.min(w - 1, x1); x++){
+        if(!ink[y * w + x]){ continue; }
+        var left = x, right = x;
+        while(left > 0 && ink[y * w + left - 1]){ left--; }
+        while(right < w - 1 && ink[y * w + right + 1]){ right++; }
+        var across = right - left + 1;
+        var tall = 0, k;
+        for(k = y; k >= 0 && ink[k * w + x]; k--){ tall++; }
+        for(k = y + 1; k < h && ink[k * w + x]; k++){ tall++; }
+        if(across <= step * 0.45 && tall <= step * 0.45){ return true; }
+      }
+    }
+    return false;
+  }
+
   /* Is there a stem on this head? A stem leaves the head at one side and runs
      two or three spaces up or down, so the test is: somewhere across the head's
      width, is there a column of ink that keeps going well past it? A rest has
@@ -459,9 +542,16 @@
         /* A rest is the same size as a head and lands on the staff like one;
            what it never has is a stem. Neither does a whole note, but a melody
            is not made of them, and a wrong note is worse than a missing one. */
-        if(!hasStem(ink, w, h, b, step)){ return; }
         if(inside(boxes, b.x, b.y, step)){ return; }
         if(b.x < after){ return; }
+        /* No stem means it is not a note -- and on a staff, at this size, it is
+           almost always a rest. A rest is kept rather than dropped now: it has
+           no pitch but it has a length, and without it a bar does not add up
+           and the notes after it fall in the wrong place. */
+        if(!hasStem(ink, w, h, b, step)){
+          here.push({x:b.x, y:b.y, rest:true, w:b.w, h:b.h, fill:b.n / (b.w * b.h)});
+          return;
+        }
         here.push({x:b.x, y:b.y, filled:true, w:b.w, h:b.h, fill:b.n / (b.w * b.h)});
       });
 
@@ -498,14 +588,30 @@
       here.forEach(function(n){
         var last = kept[kept.length - 1];
         if(last && Math.abs(n.x - last.x) < step * 0.7){
-          if(n.y < last.y){ kept[kept.length - 1] = n; }
+          /* a note and a rest at the same moment is a rest in another voice:
+             the note is the melody */
+          if(last.rest && !n.rest){ kept[kept.length - 1] = n; }
+          else if(!n.rest && n.y < last.y){ kept[kept.length - 1] = n; }
           return;
         }
         kept.push(n);
       });
 
       kept.forEach(function(n){
-        notes.push({staff:staff, x:n.x, y:n.y, filled:n.filled, w:n.w, h:n.h, fill:n.fill});
+        if(n.rest){
+          notes.push({staff:staff, x:n.x, y:n.y, rest:true, beats:null});
+          return;
+        }
+        /* what the ink says about how long it is */
+        var stem = stemOf(ink, w, h, n, step);
+        var bands = beamsOn(ink, w, h, stem, step);
+        var beats = n.filled ? 1 : 2;
+        if(!stem && !n.filled){ beats = 4; }          /* a whole note has none */
+        if(n.filled && bands > 0){ beats = 1 / Math.pow(2, Math.min(bands, 4)); }
+        if(dotted(ink, w, h, n, step)){ beats *= 1.5; }
+
+        notes.push({staff:staff, x:n.x, y:n.y, filled:n.filled, w:n.w, h:n.h, fill:n.fill,
+                    beats:beats, bands:bands, stem:!!stem});
       });
     });
 
