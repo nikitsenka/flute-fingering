@@ -63,11 +63,17 @@
   function staffRows(ink, w, h, share){
     var rows = [];
     for(var y = 0; y < h; y++){
-      var run = 0, best = 0, at = y * w;
+      var run = 0, best = 0, from = 0, bestFrom = 0, at = y * w;
       for(var x = 0; x < w; x++){
-        if(ink[at + x]){ run++; if(run > best){ best = run; } } else { run = 0; }
+        if(ink[at + x]){
+          if(!run){ from = x; }
+          run++;
+          if(run > best){ best = run; bestFrom = from; }
+        } else { run = 0; }
       }
-      if(best >= w * share){ rows.push(y); }
+      /* where the line runs, as well as that it does: the clef sits at its
+         left end and the notes start after it */
+      if(best >= w * share){ rows.push({y:y, x0:bestFrom, x1:bestFrom + best}); }
     }
     return rows;
   }
@@ -78,13 +84,15 @@
 
     /* a printed line is two or three pixels thick, so the rows come in clumps */
     var clumps = [], last = -9;
-    rows.forEach(function(y){
-      if(y - last > 3){ clumps.push([y]); } else { clumps[clumps.length - 1].push(y); }
-      last = y;
+    rows.forEach(function(r){
+      if(r.y - last > 3){ clumps.push([r]); } else { clumps[clumps.length - 1].push(r); }
+      last = r.y;
     });
 
     var thick = Math.max(1, Math.round(clumps.reduce(function(n, c){ return n + c.length; }, 0) / clumps.length));
-    var lines = clumps.map(function(c){ return c[c.length >> 1]; });
+    var lines = clumps.map(function(c){ return c[c.length >> 1].y; });
+    var lefts = clumps.map(function(c){ return c[c.length >> 1].x0; });
+    var rights = clumps.map(function(c){ return c[c.length >> 1].x1; });
 
     var out = [];
     for(var i = 0; i + 4 < lines.length;){
@@ -93,13 +101,47 @@
       var step = gaps.reduce(function(a, b){ return a + b; }, 0) / 4;
       var even = step > 3 && gaps.every(function(g){ return Math.abs(g - step) <= step * 0.3; });
       if(even){
-        out.push({top:five[0], bottom:five[4], step:step, lines:five, thick:thick});
+        out.push({top:five[0], bottom:five[4], step:step, lines:five, thick:thick,
+                  x0:Math.min.apply(null, lefts.slice(i, i + 5)),
+                  x1:Math.max.apply(null, rights.slice(i, i + 5))});
         i += 5;
       } else {
         i += 1;
       }
     }
     return out;
+  }
+
+  /* ---------- the clef ----------
+     A clef is drawn taller than the staff -- the treble runs a couple of spaces
+     above and below it -- and it stands at the left end where no note ever
+     starts. Nothing here reads which clef it is; what matters is where it
+     stops, because its loop is a hollow head to any test that only looks at
+     shape, and it is the reason a half note cannot be found by widening one.
+     Whatever key signature follows is inside the same stretch. */
+  function clefEnd(ink, w, h, staff){
+    var reach = staff.step * 5;
+    var from = Math.round(staff.top - staff.step * 2.5);
+    var to = Math.round(staff.bottom + staff.step * 2.5);
+    var last = staff.x0;
+
+    /* The clef is the first tall thing on the staff and it is one thing: a run
+       of columns whose ink reaches well past the staff, ending at the first
+       real gap. Measuring the reach rather than an unbroken run is what finds
+       it -- a clef is a curve, and any one column of it is mostly gaps -- but
+       without the stop it would run on to the first slur and swallow the notes
+       under it. */
+    var started = false, quiet = 0;
+    for(var x = staff.x0; x < Math.min(w, staff.x0 + staff.step * 9); x++){
+      var first = -1, lastInk = -1;
+      for(var y = Math.max(0, from); y <= Math.min(h - 1, to); y++){
+        if(ink[y * w + x]){ if(first < 0){ first = y; } lastInk = y; }
+      }
+      var tall = first >= 0 && lastInk - first >= reach;
+      if(tall){ last = x; started = true; quiet = 0; }
+      else if(started && ++quiet > staff.step * 0.5){ break; }
+    }
+    return last;
   }
 
   /* ---------- chord grids ----------
@@ -389,6 +431,7 @@
       var y0 = Math.round(staff.top - step * 3.2);
       var y1 = Math.round(staff.bottom + step * 3.2);
       var here = [];
+      var after = clefEnd(ink, w, h, staff) + step * 0.8;
 
       blobs(solid, w, h, y0, y1, 3000).forEach(function(b){
         if(b.full){ return; }
@@ -408,25 +451,26 @@
            is not made of them, and a wrong note is worse than a missing one. */
         if(!hasStem(ink, w, h, b, step)){ return; }
         if(inside(boxes, b.x, b.y, step)){ return; }
+        if(b.x < after){ return; }
         here.push({x:b.x, y:b.y, filled:true, w:b.w, h:b.h, fill:b.n / (b.w * b.h)});
       });
 
       holes(ink, w, h, y0, y1).forEach(function(b){
         if(b.full){ return; }
-        /* Widening this window to catch a half note whose hole is a shade
-           bigger was tried and put back: it let in the loop of the treble clef,
-           which is the same shape, sits on a step, and has the clef's own
-           stroke beside it to pass for a stem. One missed note beats four
-           invented ones, so the window stays tight until the clef is
-           recognised as a clef. */
-        if(b.w < step * 0.3 || b.w > step * 1.2){ return; }
-        if(b.h < step * 0.2 || b.h > step * 0.9){ return; }
+        /* The hole in a half note is nearly the size of the head around it --
+           sixteen pixels across a space of eighteen on the page this was built
+           against. The window was tight while the treble clef's loop was still
+           in play, since that is the same shape; now the clef is skipped, the
+           window can be the size the note actually is. */
+        if(b.w < step * 0.3 || b.w > step * 1.35){ return; }
+        if(b.h < step * 0.2 || b.h > step * 1.05){ return; }
         /* the hole in a half note is an ellipse lying down, half again as wide
            as it is tall; a square hole is a gap between two other things */
         if(b.w < b.h * 1.2){ return; }
         if(!onStep(staff, b.y)){ return; }
         if(!hasStem(ink, w, h, {x:b.x, y:b.y, w:step}, step)){ return; }
         if(inside(boxes, b.x, b.y, step)){ return; }
+        if(b.x < after){ return; }
         here.push({x:b.x, y:b.y, filled:false, w:b.w, h:b.h, fill:b.n / (b.w * b.h)});
       });
 
