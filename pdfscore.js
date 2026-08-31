@@ -823,6 +823,23 @@
      takes whatever is left of the bar it is in. A note that will not fit what
      is left starts the next bar, and the one it leaves behind is finished with
      a rest, because every bar the game plays has to be whole. */
+  /* A length that no single code spells -- two and a half beats, three and a
+     half -- is written as two, longest first. Rounding it to the nearest code
+     instead is how a bar came out half a beat long. */
+  function codesFor(beats){
+    /* nothing at all is the right answer for a bar that is already full: the
+       dust left by adding halves and thirds is not a sixteenth */
+    if(beats < 0.125){ return []; }
+    var list = global.DURATIONS.list, out = [], left = beats;
+    for(var i = 0; i < list.length && left > 1e-9; i++){
+      while(list[i].beats <= left + 1e-9){
+        out.push(list[i].code);
+        left -= list[i].beats;
+      }
+    }
+    return out.length ? out : (beats >= 0.125 ? [spell(beats)] : []);
+  }
+
   function packBars(flat, perBar){
     /* A piece does not open with a bar of silence: a rest before the first note
        is either something misread on a title page or a rest belonging to a bar
@@ -833,11 +850,10 @@
 
     function close(){
       if(!bar.length){ return; }
-      while(filled < perBar - 1e-9){
-        var want = Math.min(perBar - filled, 4);
-        bar.push(["R", spell(want)]);
-        filled += global.DURATIONS.beats[spell(want)];
-      }
+      codesFor(perBar - filled).forEach(function(code){
+        bar.push(["R", code]);
+        filled += global.DURATIONS.beats[code];
+      });
       bars.push(bar);
       bar = [];
       filled = 0;
@@ -851,8 +867,13 @@
       }
       if(filled + beats > perBar + 1e-9){ close(); }
       if(beats > perBar){ beats = perBar; }
-      bar.push([e.rest ? "R" : e.pitch, spell(beats)]);
-      filled += global.DURATIONS.beats[spell(beats)];
+
+      /* a rest of two and a half beats is a half and an eighth, not a rounding */
+      var codes = e.rest || !e.beats ? codesFor(beats) : [spell(beats)];
+      codes.forEach(function(code){
+        bar.push([e.rest ? "R" : e.pitch, code]);
+        filled += global.DURATIONS.beats[code];
+      });
       if(filled >= perBar - 1e-9){ close(); }
     });
     close();

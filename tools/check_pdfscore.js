@@ -194,6 +194,36 @@ function short(made){
   return bad;
 }
 
+/* ---------- the scan path ----------
+   A scanned page comes in as pitches and lengths with no barlines, so the bars
+   are filled rather than found -- and a rest that takes what is left of a bar
+   can want two and a half beats, which no single length spells. Writing that as
+   the nearest one instead of as two is how seven bars came out half a beat long
+   and reached the site. The lengths here are the awkward ones on purpose. */
+function checkScanBars(){
+  var doc = {kind:"pdf", pages:[], seen:null, scan:{
+    staves:3, systems:3, played:3,
+    notes: [
+      {pitch:"c/5", beats:1.5}, {pitch:"R", beats:null},
+      {pitch:"e/5", beats:0.5}, {pitch:"R", beats:null},
+      {pitch:"g/5", beats:0.25}, {pitch:"R", beats:null},
+      {pitch:"a/5", beats:3}, {pitch:"R", beats:null},
+      {pitch:"b/4", beats:2}, {pitch:"c/5", beats:0.75}, {pitch:"R", beats:null}
+    ]
+  }};
+
+  var line = PdfScore.analyze(doc)[0];
+  var made = PdfScore.convert(doc, line, {octave:0});
+  console.log("a scanned page, in lengths that do not divide evenly");
+  ok("it makes bars", made.score.measures.length > 0, made.score.measures.length + " bars");
+  ok("every bar is four beats", short(made) === 0, short(made) + " bar(s) are not");
+  ok("it says it came off a scan",
+     made.report.problems.some(function(p){ return /picture of a page/.test(p); }));
+  made.score.measures.forEach(function(m){
+    console.log("      bar " + m.n + ": " + m.notes.map(function(n){ return n[0] + ":" + n[1]; }).join(" "));
+  });
+}
+
 function refuses(name, why){
   return PdfScore.bytes(bytesOf(name), inflate).then(function(){
     ok(name + " is refused (" + why + ")", false, "it was accepted");
@@ -215,6 +245,7 @@ realFiles().forEach(function(file){
 });
 
 run.then(function(){
+  checkScanBars();
   return refuses("sample-scan.pdf", "a photograph has no coordinates in it");
 }).then(function(){
   return refuses("sample-locked.pdf", "the file is protected");
