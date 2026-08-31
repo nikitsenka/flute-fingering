@@ -163,6 +163,7 @@ window.I18N_STRINGS.de = {
   "import.pdf.altered": "Vorzeichen wurden gelesen ({n}). Ein Vorzeichen gilt noch nicht bis zum Taktende, eine Wiederholung der alterierten Note kommt daher ohne an.",
   "import.pdf.staves": "{n} Systeme wurden von oben nach unten als eine Linie gelesen.",
   "import.pdf.bass": "{n} Note(n) auf Systemen in einem anderen Schlüssel — der linken Hand eines Klavierparts — wurden ausgelassen.",
+  "import.pdf.scanned": "Von einem Bild der Seite gelesen: etwa jede zehnte Note kann fehlen, und der Rhythmus wurde gar nicht gelesen. Vor dem Üben mit dem Papier vergleichen.",
   "import.err.pdfScan": "dieses PDF ist ein Scan, kein Notensatz",
   "import.err.pdfLocked": "dieses PDF ist passwortgeschützt",
   "import.err.pdfNot": "diese Datei ist kein PDF",

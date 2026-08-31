@@ -163,6 +163,7 @@ window.I18N_STRINGS.fr = {
   "import.pdf.altered": "Les altérations ont été lues ({n}). Une altération ne vaut pas encore jusqu'à la fin de la mesure : une note altérée répétée arrive sans elle.",
   "import.pdf.staves": "{n} portées ont été lues comme une seule ligne, de haut en bas.",
   "import.pdf.bass": "{n} note(s) sur des portées dans une autre clé — la main gauche d'une partie de piano — ont été laissées de côté.",
+  "import.pdf.scanned": "Lu sur une image de la page : environ une note sur dix peut manquer, et le rythme n'a pas été lu du tout. Vérifiez sur le papier avant de travailler ce morceau.",
   "import.err.pdfScan": "ce PDF est un scan, pas une gravure",
   "import.err.pdfLocked": "ce PDF est protégé par un mot de passe",
   "import.err.pdfNot": "ce fichier n'est pas un PDF",

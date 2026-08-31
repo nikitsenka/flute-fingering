@@ -97,7 +97,9 @@
   var MAX_PAGES = 8;
 
   function readBytes(bytes, inflate){
+    var inner = null;
     return global.PdfRead.open(bytes, inflate || browserInflate).then(function(doc){
+      inner = doc;
       var count = Math.min(doc.pages.length, MAX_PAGES);
       var pages = [];
 
@@ -116,14 +118,54 @@
            image and no geometry, and no amount of work here recovers notes
            from it -- that is image recognition, a different program. */
         var kind = global.PdfRead.classify(pages[0]);
-        if(kind.kind === "scan"){
-          throw fail("import.err.pdfScan", "this PDF is a scan: " + kind.why);
-        }
         if(kind.kind === "empty" || kind.kind === "sparse"){
           throw fail("import.err.pdfEmpty", "there is not enough on this page: " + kind.why);
         }
-        return {kind:"pdf", pages:pages, verdict:kind, seen:null};
+
+        var doc = {kind:"pdf", pages:pages, verdict:kind, seen:null, scan:null};
+        if(kind.kind !== "scan"){ return doc; }
+
+        /* A scan has no marks to read, only a picture of a page, so it goes to
+           pdfscan.js instead -- which needs the pixels, and getting them is the
+           one part of this that has to wait on the reader. */
+        if(!global.PdfScan){
+          throw fail("import.err.pdfScan", "this PDF is a scan and the scan reader is not loaded");
+        }
+        return readScan(inner, doc);
       });
+    });
+  }
+
+  /* ---------- a scanned page ----------
+     Each page is one image; the reader hands over its pixels and pdfscan.js
+     finds the staves and the heads on them. What comes back is the same shape
+     the engraved side produces -- pitches in reading order -- so everything
+     above this point stays as it was. */
+  function readScan(doc, out){
+    var notes = [], staves = 0, systems = 0, played = 0;
+    var chain = Promise.resolve();
+
+    out.pages.forEach(function(page){
+      (page.images || []).forEach(function(im){
+        if(im.ref === undefined || im.ref === null){ return; }
+        chain = chain.then(function(){
+          return global.PdfRead.image(doc, im.ref).then(function(bits){
+            var got = global.PdfScan.read(bits);
+            staves += got.staves.length;
+            systems += got.systems.length;
+            played += got.wanted.length;
+            got.notes.forEach(function(n){ notes.push(global.PdfScan.pitchOf(n)); });
+          }, function(){ /* an image that will not decode is not a page of music */ });
+        });
+      });
+    });
+
+    return chain.then(function(){
+      if(!notes.length){
+        throw fail("import.err.pdfScan", "nothing on this scan reads as music");
+      }
+      out.scan = {notes:notes, staves:staves, systems:systems, played:played};
+      return out;
     });
   }
 
@@ -514,6 +556,16 @@
      trainer plays one note at a time -- the same rule songimport.js applies to
      a chord in MusicXML. */
   function recognise(doc){
+    /* A scan arrives already read: pitches in order, and nothing else. There
+       are no stems to measure here and no glyphs to name, so every note is a
+       quarter and the dialog says as much. */
+    if(doc.scan){
+      var flat = doc.scan.notes.map(function(pitch){ return {pitch:pitch, rest:false, beats:1}; });
+      return {events:evenBars(flat, 4), notes:doc.scan.notes.slice(),
+              staves:doc.scan.staves, used:doc.scan.played, skipped:0, chords:0,
+              glyphs:false, accidentals:0, timed:false, bars:0, scanned:true};
+    }
+
     var events = [];
     var staffCount = 0, usedStaves = 0, skipped = 0, chords = 0, fromGlyphs = false;
     var accidentalsRead = 0, timed = false, barCount = 0;
@@ -810,7 +862,7 @@
       /* what the page could not tell us, carried so the dialog can say it
          before the reader presses Add rather than after */
       printed: {staves:seen.used, skipped:seen.skipped, lengths:seen.timed,
-                accidentals:seen.accidentals}
+                accidentals:seen.accidentals, scanned:!!seen.scanned}
     };
 
     seen.notes.forEach(function(pitch){
@@ -876,6 +928,10 @@
     measures[measures.length - 1].bar = "double";
 
     var problems = [];
+    if(doc.seen.scanned){
+      problems.push("this was read off a picture of a page: about one note in ten " +
+                    "may be missing, and nothing about the rhythm was read");
+    }
     problems.push(doc.seen.timed
       ? "lengths were read from the stems and beams; a half note is not told from " +
         "a quarter, so a bar that came up short was finished with a rest"
@@ -907,7 +963,8 @@
       score: {key:options.key || "C", time:time, measures:measures, systems:[], crossSlurs:[]},
       report: {bars:measures.length, pitches:list, missing:missing, problems:problems,
                bpm:0, staves:doc.seen.staves, skipped:doc.seen.skipped,
-               chords:doc.seen.chords, glyphs:doc.seen.glyphs, timed:doc.seen.timed}
+               chords:doc.seen.chords, glyphs:doc.seen.glyphs, timed:doc.seen.timed,
+               scanned:!!doc.seen.scanned}
     };
   }
 

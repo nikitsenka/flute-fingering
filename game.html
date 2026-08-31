@@ -322,6 +322,7 @@
 <script src="audiopitch.js"></script>
 <script src="audioimport.js"></script>
 <script src="pdfread.js"></script>
+<script src="pdfscan.js"></script>
 <script src="pdfscore.js"></script>
 <script>
 (function(){
@@ -933,7 +934,9 @@
   var mine = remembered(MINE_KEY, []);
   if(Object.prototype.toString.call(mine) !== "[object Array]"){ mine = []; }
   mine.forEach(function(s){
-    if(s && s.id && s.score){ SONGS.push({id:s.id, title:s.title, score:s.score, mine:true}); }
+    if(s && s.id && s.score){
+      SONGS.push({id:s.id, title:s.title, score:s.score, mine:true, scanned:!!s.scanned});
+    }
   });
 
   /* A built-in piece cannot be deleted -- it lives in songs.js, which the next
@@ -964,7 +967,7 @@
     shown.forEach(function(s){
       var opt = document.createElement("option");
       opt.value = s.id;
-      opt.textContent = s.mine ? songTitle(s) + " ●" : songTitle(s);
+      opt.textContent = s.mine ? songTitle(s) + (s.scanned ? " ◌" : " ●") : songTitle(s);
       songSel.appendChild(opt);
     });
     songSel.value = selected;
@@ -1241,6 +1244,10 @@
       if(line.printed.skipped){
         notes.push(I18n.t("import.pdf.bass", {n: line.printed.skipped}));
       }
+      /* a scan is read off a picture, and the reader loses about a note in ten;
+         it goes first, because it is the one thing that changes whether the
+         piece is worth practising from */
+      if(line.printed.scanned){ notes.unshift(I18n.t("import.pdf.scanned")); }
     }
     if(line.trouble && line.trouble.verdict === "wide"){
       notes.push(I18n.t("import.audio.wide", {spread:line.trouble.spread, span:line.trouble.span}));
@@ -1285,10 +1292,13 @@
 
     var title = (titleInput.value || I18n.t("game.untitled")).trim().slice(0, 40);
     var id = "mine-" + Date.now().toString(36);
-    var song = {id:id, title:title, score:result.score, mine:true};
+    /* a piece read off a scan is marked as one, in the list and not only in
+       the dialog: the dialog is seen once and the list every time */
+    var scanned = !!(result.report && result.report.scanned);
+    var song = {id:id, title:title, score:result.score, mine:true, scanned:scanned};
     SONGS.push(song);
 
-    mine.push({id:id, title:title, score:result.score});
+    mine.push({id:id, title:title, score:result.score, scanned:scanned});
     keep(MINE_KEY, mine);
     keep(STORE_KEY, id);
 

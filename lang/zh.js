@@ -156,6 +156,7 @@ window.I18N_STRINGS.zh = {
   "import.pdf.altered": "已读取 {n} 个升降还原记号。记号尚不延续到本小节其余部分，重复出现的变化音会按本位音加入。",
   "import.pdf.staves": "{n} 行谱表被自上而下读作一条旋律。",
   "import.pdf.bass": "另一谱号的谱表（钢琴左手）上的 {n} 个音符已略过。",
+  "import.pdf.scanned": "从页面图像读取：大约每十个音符可能缺一个，节奏完全未读取。练习前请与纸质谱对照。",
   "import.err.pdfScan": "这个 PDF 是扫描件，不是矢量乐谱",
   "import.err.pdfLocked": "这个 PDF 有密码保护",
   "import.err.pdfNot": "这个文件不是 PDF",
