@@ -413,6 +413,12 @@
 
       holes(ink, w, h, y0, y1).forEach(function(b){
         if(b.full){ return; }
+        /* Widening this window to catch a half note whose hole is a shade
+           bigger was tried and put back: it let in the loop of the treble clef,
+           which is the same shape, sits on a step, and has the clef's own
+           stroke beside it to pass for a stem. One missed note beats four
+           invented ones, so the window stays tight until the clef is
+           recognised as a clef. */
         if(b.w < step * 0.3 || b.w > step * 1.2){ return; }
         if(b.h < step * 0.2 || b.h > step * 0.9){ return; }
         /* the hole in a half note is an ellipse lying down, half again as wide
