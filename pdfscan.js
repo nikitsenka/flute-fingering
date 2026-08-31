@@ -182,8 +182,13 @@
 
     /* a grid is small and roughly square; a run of short lines the width of the
        page is something else and is left alone */
+    /* A chord diagram is a few staff spaces across -- six strings and four or
+       five frets -- and about as tall as it is wide. A quarter of the page was
+       far too generous: it let a run of beams and slurs four hundred pixels
+       long count as a grid, and every note under it was thrown away. */
     boxes = boxes.filter(function(b){
-      return (b.x1 - b.x0) < w * 0.25 && (b.y1 - b.y0) < step * 6;
+      var across = b.x1 - b.x0, down = b.y1 - b.y0;
+      return across >= step * 2 && across <= step * 8 && down <= step * 8;
     });
 
     /* The line found first is usually the nut, the thick one across the top;
@@ -264,6 +269,11 @@
      mark, and the last two are told apart by size. */
   function cores(mask, w, h, step){
     var least = Math.max(3, Math.round(step * 0.5));
+    /* And an upper bound, which is what a beam runs into. Measured on the page
+       this was built against: a head's widest row is 26 pixels across a space
+       of 18.5, a double beam's is 187. Thickness cannot separate them -- the
+       beam is 16 deep and so is the head -- but length is not close. */
+    var most = Math.round(step * 3.5);
     var wide = new Uint8Array(w * h);
     for(var y = 0; y < h; y++){
       var at = y * w, x = 0;
@@ -271,7 +281,7 @@
         if(!mask[at + x]){ x++; continue; }
         var from = x;
         while(x < w && mask[at + x]){ x++; }
-        if(x - from >= least){
+        if(x - from >= least && x - from <= most){
           for(var k = from; k < x; k++){ wide[at + k] = 1; }
         }
       }
