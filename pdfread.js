@@ -230,7 +230,7 @@
 
   /* ---------- the document ---------- */
 
-  function indexObjects(str){
+  function indexObjects(str, gens){
     var at = {};
     var re = /(\d+)[ \t\r\n]+(\d+)[ \t\r\n]+obj\b/g;
     var m;
@@ -238,6 +238,8 @@
       /* a later definition of the same number is an incremental update, and the
          update is the one that counts */
       at[+m[1]] = m.index + m[0].length;
+      /* the generation goes with it: decryption keys are made from both */
+      if(gens){ gens[+m[1]] = +m[2]; }
     }
     return at;
   }
@@ -246,7 +248,9 @@
     this.bytes = bytes;
     this.s = latin1(bytes);
     this.inflate = inflate;
-    this.at = indexObjects(this.s);
+    this.gens = {};
+    this.at = indexObjects(this.s, this.gens);
+    this.crypt = null;
     this.cache = {};
     this.streams = {};      /* object number -> {dict, start, length} */
     this.pages = [];
@@ -307,8 +311,20 @@
     }
 
     var raw = this.bytes.subarray(rec.start, end);
+
+    /* An encrypted file hides its streams, and they have to come back before
+       any filter runs -- a cross-reference stream excepted, which is never
+       encrypted because the reader has to find the encryption dictionary
+       through it. */
+    var before;
+    if(this.crypt && nameOf(this.get(rec.dict, "Type")) !== "XRef"){
+      before = decryptBytes(this.crypt, objectKey(this.crypt, num, this.gens[num] || 0), raw);
+    } else {
+      before = Promise.resolve(raw);
+    }
+
     var filters = this.get(rec.dict, "Filter");
-    if(!filters){ return Promise.resolve(raw); }
+    if(!filters){ return before; }
     if(!Array.isArray(filters)){ filters = [filters]; }
 
     /* /DecodeParms lines up with /Filter by position, so each filter is handed
@@ -321,7 +337,7 @@
     if(parms === null || parms === undefined){ parms = this.get(rec.dict, "DP"); }
     if(!Array.isArray(parms)){ parms = [parms]; }
 
-    var chain = Promise.resolve(raw);
+    var chain = before;
     filters.forEach(function(f, i){
       var name = nameOf(self.resolve(f));
       var parm = self.resolve(parms[i]);
@@ -547,6 +563,249 @@
      ignored), so /Encrypt is looked for where it is written -- in a trailer or
      a cross-reference stream dictionary -- and confirmed against the security
      handler's own object. */
+  /* ---------- a file that is "protected" but not locked ----------
+     Most sheet music that arrives encrypted has an owner password and an empty
+     user one: the restrictions are on printing and copying, and every reader
+     opens it without asking anybody anything. Refusing those is refusing the
+     common case. What is genuinely locked -- a real user password -- still has
+     to be refused, and the difference is testable: the standard handler stores
+     a check value that only comes out right when the password is the one the
+     file was made with.
+
+     MD5 and RC4 are written out here because nothing else in the browser has
+     them; AES comes from WebCrypto, which is why the whole path is promised.
+     Only streams are decrypted. Strings inside dictionaries are encrypted too,
+     but nothing in this reader reads one -- a title or an author, not a note.
+
+     PDF 32000-1, 7.6.3: algorithm 2 builds the key, algorithm 6 checks it. */
+  var PAD = [0x28,0xBF,0x4E,0x5E,0x4E,0x75,0x8A,0x41,0x64,0x00,0x4E,0x56,
+             0xFF,0xFA,0x01,0x08,0x2E,0x2E,0x00,0xB6,0xD0,0x68,0x3E,0x80,
+             0x2F,0x0C,0xA9,0xFE,0x64,0x53,0x69,0x7A];
+
+  function md5(bytes){
+    function rol(n, c){ return (n << c) | (n >>> (32 - c)); }
+    var S = [7,12,17,22,7,12,17,22,7,12,17,22,7,12,17,22,
+             5,9,14,20,5,9,14,20,5,9,14,20,5,9,14,20,
+             4,11,16,23,4,11,16,23,4,11,16,23,4,11,16,23,
+             6,10,15,21,6,10,15,21,6,10,15,21,6,10,15,21];
+    var K = [];
+    for(var i = 0; i < 64; i++){ K[i] = (Math.abs(Math.sin(i + 1)) * 4294967296) | 0; }
+
+    var len = bytes.length;
+    var withPad = new Uint8Array(((len + 8) >> 6) * 64 + 64);
+    withPad.set(bytes);
+    withPad[len] = 0x80;
+    var bits = len * 8;
+    for(var b = 0; b < 4; b++){ withPad[withPad.length - 8 + b] = (bits >>> (8 * b)) & 0xFF; }
+
+    var a0 = 0x67452301, b0 = 0xefcdab89, c0 = 0x98badcfe, d0 = 0x10325476;
+    for(var off = 0; off < withPad.length; off += 64){
+      var M = [];
+      for(var j = 0; j < 16; j++){
+        M[j] = withPad[off + j * 4] | (withPad[off + j * 4 + 1] << 8) |
+               (withPad[off + j * 4 + 2] << 16) | (withPad[off + j * 4 + 3] << 24);
+      }
+      var A = a0, B = b0, C = c0, D = d0;
+      for(var k = 0; k < 64; k++){
+        var F, g;
+        if(k < 16){ F = (B & C) | (~B & D); g = k; }
+        else if(k < 32){ F = (D & B) | (~D & C); g = (5 * k + 1) % 16; }
+        else if(k < 48){ F = B ^ C ^ D; g = (3 * k + 5) % 16; }
+        else { F = C ^ (B | ~D); g = (7 * k) % 16; }
+        F = (F + A + K[k] + M[g]) | 0;
+        A = D; D = C; C = B;
+        B = (B + rol(F, S[k])) | 0;
+      }
+      a0 = (a0 + A) | 0; b0 = (b0 + B) | 0; c0 = (c0 + C) | 0; d0 = (d0 + D) | 0;
+    }
+
+    var out = new Uint8Array(16);
+    [a0, b0, c0, d0].forEach(function(word, w){
+      for(var n = 0; n < 4; n++){ out[w * 4 + n] = (word >>> (8 * n)) & 0xFF; }
+    });
+    return out;
+  }
+
+  function rc4(key, data){
+    var s = new Uint8Array(256), i, j = 0, t;
+    for(i = 0; i < 256; i++){ s[i] = i; }
+    for(i = 0; i < 256; i++){
+      j = (j + s[i] + key[i % key.length]) & 0xFF;
+      t = s[i]; s[i] = s[j]; s[j] = t;
+    }
+    var out = new Uint8Array(data.length);
+    i = 0; j = 0;
+    for(var n = 0; n < data.length; n++){
+      i = (i + 1) & 0xFF;
+      j = (j + s[i]) & 0xFF;
+      t = s[i]; s[i] = s[j]; s[j] = t;
+      out[n] = data[n] ^ s[(s[i] + s[j]) & 0xFF];
+    }
+    return out;
+  }
+
+  /* the parser hands a PDF string back as {str:"..."}, already unescaped */
+  function textOf(v){
+    if(v && typeof v.str === "string"){ return v.str; }
+    return typeof v === "string" ? v : "";
+  }
+
+  function bytesOfString(str){
+    var out = new Uint8Array(str.length);
+    for(var i = 0; i < str.length; i++){ out[i] = str.charCodeAt(i) & 0xFF; }
+    return out;
+  }
+
+  function joinBytes(parts){
+    var n = 0;
+    parts.forEach(function(p){ n += p.length; });
+    var out = new Uint8Array(n), at = 0;
+    parts.forEach(function(p){ out.set(p, at); at += p.length; });
+    return out;
+  }
+
+  /* The first half of /ID, as bytes. It is written in the trailer, which this
+     reader does not parse, so it is read where it is written. */
+  function firstId(doc){
+    var m = /\/ID\s*\[\s*<([0-9a-fA-F\s]*)>/.exec(doc.s);
+    if(m){
+      var hex = m[1].replace(/\s+/g, "");
+      var out = new Uint8Array(hex.length >> 1);
+      for(var i = 0; i < out.length; i++){ out[i] = parseInt(hex.substr(i * 2, 2), 16); }
+      return out;
+    }
+    m = /\/ID\s*\[\s*\(([^)]*)\)/.exec(doc.s);
+    return m ? bytesOfString(m[1]) : new Uint8Array(0);
+  }
+
+  function fileKey(enc, doc){
+    var R = num(doc.get(enc, "R")) || 2;
+    var length = num(doc.get(enc, "Length")) || 40;
+    var bits = R === 2 ? 5 : Math.floor(length / 8);
+    var O = bytesOfString(textOf(doc.get(enc, "O")));
+    var P = num(doc.get(enc, "P")) | 0;
+    var pbytes = new Uint8Array(4);
+    for(var i = 0; i < 4; i++){ pbytes[i] = (P >>> (8 * i)) & 0xFF; }
+
+    var parts = [new Uint8Array(PAD), O.subarray(0, 32), pbytes, firstId(doc)];
+    if(R >= 4 && doc.get(enc, "EncryptMetadata") === false){
+      parts.push(new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF]));
+    }
+
+    var key = md5(joinBytes(parts));
+    if(R >= 3){
+      for(var n = 0; n < 50; n++){ key = md5(key.subarray(0, bits)); }
+    }
+    return key.subarray(0, bits);
+  }
+
+  /* Algorithm 6: does the empty user password open this file? */
+  function emptyPasswordWorks(enc, doc, key){
+    var R = num(doc.get(enc, "R")) || 2;
+    var U = bytesOfString(textOf(doc.get(enc, "U")));
+    if(R === 2){
+      var want = rc4(key, new Uint8Array(PAD));
+      return same(want, U, 32);
+    }
+    var seed = md5(joinBytes([new Uint8Array(PAD), firstId(doc)]));
+    var out = rc4(key, seed);
+    for(var i = 1; i <= 19; i++){
+      var k = new Uint8Array(key.length);
+      for(var j = 0; j < key.length; j++){ k[j] = key[j] ^ i; }
+      out = rc4(k, out);
+    }
+    /* only the first 16 bytes are the check; the rest is arbitrary padding */
+    return same(out, U, 16);
+  }
+
+  function same(a, b, n){
+    if(!a || !b || a.length < n || b.length < n){ return false; }
+    for(var i = 0; i < n; i++){ if(a[i] !== b[i]){ return false; } }
+    return true;
+  }
+
+  /* Which cipher the streams are under: V4 names a crypt filter, and anything
+     earlier is RC4 with the file key. */
+  function streamCipher(enc, doc){
+    var V = num(doc.get(enc, "V")) || 0;
+    if(V < 4){ return "rc4"; }
+    var name = nameOf(doc.get(enc, "StmF")) || "Identity";
+    if(name === "Identity"){ return "none"; }
+    var filters = doc.get(enc, "CF");
+    var cf = isDict(filters) ? doc.get(filters, name) : null;
+    var cfm = cf ? nameOf(doc.get(cf, "CFM")) : null;
+    if(cfm === "AESV2"){ return "aes"; }
+    if(cfm === "V2" || cfm === "RC4"){ return "rc4"; }
+    if(cfm === "None"){ return "none"; }
+    return null;                       /* AESV3 and anything newer: not read */
+  }
+
+  function setupCrypt(doc){
+    var enc = null;
+    var nums = Object.keys(doc.at).map(Number);
+    var m = /\/Encrypt\s+(\d+)\s+\d+\s+R/.exec(doc.s);
+    if(m){ enc = doc.object(+m[1]); }
+    if(!isDict(enc)){
+      for(var i = 0; i < nums.length && !isDict(enc); i++){
+        var o = doc.object(nums[i]);
+        if(isDict(o) && nameOf(doc.get(o, "Filter")) === "Standard" && o.O !== undefined){ enc = o; }
+      }
+    }
+    if(!isDict(enc)){ return null; }
+
+    var V = num(doc.get(enc, "V")) || 0;
+    if(V > 4){ return {locked:true, why:"this PDF uses an encryption this reader does not know"}; }
+
+    var cipher = streamCipher(enc, doc);
+    if(!cipher){ return {locked:true, why:"this PDF uses an encryption this reader does not know"}; }
+    /* AES comes from WebCrypto, which a page has and a bare script may not --
+       better to say so here than to hand back a document whose every stream
+       fails to decrypt and whose every page then looks empty */
+    if(cipher === "aes" && !subtleCrypto()){
+      return {locked:true, why:"this PDF is AES-encrypted and there is no crypto here to open it"};
+    }
+
+    var key = fileKey(enc, doc);
+    if(!emptyPasswordWorks(enc, doc, key)){
+      return {locked:true, why:"this PDF needs a password to open"};
+    }
+    return {key:key, cipher:cipher, aes:cipher === "aes"};
+  }
+
+  /* Per object, per PDF 32000-1 algorithm 1: the file key, the object number
+     and generation, and for AES four bytes that say so. */
+  function objectKey(crypt, num, gen){
+    if(crypt.cipher === "none"){ return null; }
+    var extra = crypt.aes ? [0x73, 0x41, 0x6C, 0x54] : [];
+    var parts = [crypt.key, new Uint8Array([num & 0xFF, (num >> 8) & 0xFF, (num >> 16) & 0xFF,
+                                            gen & 0xFF, (gen >> 8) & 0xFF].concat(extra))];
+    var key = md5(joinBytes(parts));
+    return key.subarray(0, Math.min(crypt.key.length + 5, 16));
+  }
+
+  function subtleCrypto(){
+    if(global.crypto && global.crypto.subtle){ return global.crypto.subtle; }
+    if(typeof globalThis !== "undefined" && globalThis.crypto && globalThis.crypto.subtle){
+      return globalThis.crypto.subtle;
+    }
+    return null;
+  }
+
+  function decryptBytes(crypt, key, data){
+    if(!key){ return Promise.resolve(data); }
+    if(!crypt.aes){ return Promise.resolve(rc4(key, data)); }
+    if(data.length <= 16){ return Promise.resolve(new Uint8Array(0)); }
+
+    var subtle = subtleCrypto();
+    if(!subtle){ return Promise.reject(fail("this browser cannot decrypt AES", "import.err.pdfLocked")); }
+
+    var iv = data.subarray(0, 16);
+    var body = data.subarray(16);
+    return subtle.importKey("raw", key, {name:"AES-CBC"}, false, ["decrypt"]).then(function(k){
+      return subtle.decrypt({name:"AES-CBC", iv:iv}, k, body);
+    }).then(function(buf){ return new Uint8Array(buf); });
+  }
+
   function encrypted(doc){
     if(/\/Encrypt[\s]*\d+[\s]+\d+[\s]+R/.test(doc.s)){ return true; }
     var nums = Object.keys(doc.at).map(Number);
@@ -577,7 +836,14 @@
     if(!Object.keys(doc.at).length){
       return Promise.reject(fail("no objects in the file", "import.err.pdfEmpty"));
     }
-    if(encrypted(doc)){ return Promise.reject(fail("the file is protected", "import.err.pdfLocked")); }
+    if(encrypted(doc)){
+      var crypt = setupCrypt(doc);
+      if(!crypt || crypt.locked){
+        return Promise.reject(fail((crypt && crypt.why) || "the file is protected",
+                                   "import.err.pdfLocked"));
+      }
+      doc.crypt = crypt;
+    }
     return expandObjectStreams(doc).then(function(){
       doc.pages = collectPages(doc);
       if(!doc.pages.length){

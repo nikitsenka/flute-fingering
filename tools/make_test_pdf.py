@@ -329,6 +329,99 @@ def locked():
                         b"/ID [ <0102030405060708090a0b0c0d0e0f10> <0102030405060708090a0b0c0d0e0f10> ] >>")
 
 
+PAD = bytes([
+    0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41, 0x64, 0x00, 0x4E, 0x56,
+    0xFF, 0xFA, 0x01, 0x08, 0x2E, 0x2E, 0x00, 0xB6, 0xD0, 0x68, 0x3E, 0x80,
+    0x2F, 0x0C, 0xA9, 0xFE, 0x64, 0x53, 0x69, 0x7A,
+])
+
+
+def rc4(key, data):
+    s = list(range(256))
+    j = 0
+    for i in range(256):
+        j = (j + s[i] + key[i % len(key)]) & 0xFF
+        s[i], s[j] = s[j], s[i]
+    out = bytearray()
+    i = j = 0
+    for byte in data:
+        i = (i + 1) & 0xFF
+        j = (j + s[i]) & 0xFF
+        s[i], s[j] = s[j], s[i]
+        out.append(byte ^ s[(s[i] + s[j]) & 0xFF])
+    return bytes(out)
+
+
+def owner_locked():
+    """The page again, encrypted the way a publisher locks a download.
+
+    Owner password set, user password empty: printing and copying are refused
+    but the file opens in any reader without asking anybody anything, which is
+    the case a reader must not turn away. RC4 40-bit, /V 1 /R 2 -- the oldest
+    standard handler, and the one a hand-written sample can build without a
+    crypto library. tools/check_pdfread.js checks it comes back open.
+    """
+    import hashlib
+
+    doc_id = bytes(range(16))
+    P = -44                                 # printing allowed, copying not
+    p_le = (P & 0xFFFFFFFF).to_bytes(4, "little")
+
+    owner_key = hashlib.md5(PAD).digest()[:5]      # owner password is empty too
+    O = rc4(owner_key, PAD)
+    key = hashlib.md5(PAD + O + p_le + doc_id).digest()[:5]
+    U = rc4(key, PAD)
+
+    def for_object(num, gen=0):
+        seed = key + num.to_bytes(3, "little") + gen.to_bytes(2, "little")
+        return hashlib.md5(seed).digest()[:10]
+
+    content = zlib.compress(page_content(), 6)
+    content = rc4(for_object(4), content)
+
+    def pdf_string(b):
+        out = bytearray(b"(")
+        for byte in b:
+            if byte in b"()\\":
+                out += b"\\" + bytes([byte])
+            else:
+                out.append(byte)
+        out += b")"
+        return bytes(out)
+
+    objects = {
+        1: b"<< /Type /Catalog /Pages 2 0 R >>",
+        2: b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        3: ("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %d %d] "
+            "/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>"
+            % (W, H)).encode("latin-1"),
+        4: ("<< /Filter /FlateDecode /Length %d >>\nstream\n" % len(content)).encode("latin-1")
+           + content + b"\nendstream",
+        5: b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        6: b"<< /Filter /Standard /V 1 /R 2 /Length 40 /P " + str(P).encode("latin-1")
+           + b" /O " + pdf_string(O) + b" /U " + pdf_string(U) + b" >>",
+    }
+
+    out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = {}
+    for num in sorted(objects):
+        offsets[num] = len(out)
+        out += ("%d 0 obj\n" % num).encode("latin-1")
+        out += objects[num]
+        out += b"\nendobj\n"
+
+    start = len(out)
+    top = max(objects) + 1
+    out += ("xref\n0 %d\n" % top).encode("latin-1")
+    out += b"0000000000 65535 f \n"
+    for num in range(1, top):
+        out += ("%010d 00000 n \n" % offsets.get(num, 0)).encode("latin-1")
+    out += ("trailer\n<< /Size %d /Root 1 0 R /Encrypt 6 0 R /ID [<%s> <%s>] >>\n"
+            "startxref\n%d\n%%%%EOF\n"
+            % (top, doc_id.hex(), doc_id.hex(), start)).encode("latin-1")
+    return bytes(out)
+
+
 def main():
     outdir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "samples")
     os.makedirs(outdir, exist_ok=True)
@@ -338,6 +431,7 @@ def main():
         "sample-scan.pdf": scan(),
         "sample-ascii85.pdf": ascii85_page(),
         "sample-stroked.pdf": engraved(True, stroked=True),
+        "sample-owner.pdf": owner_locked(),
         "sample-stamped.pdf": stamped(),
         "sample-locked.pdf": locked(),
     }

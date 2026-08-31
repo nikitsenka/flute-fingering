@@ -41,6 +41,9 @@ var SAMPLES = path.join(__dirname, "samples");
 var sandbox = {document:{documentElement:{}}};
 sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
+/* AES for an encrypted file comes from WebCrypto, which the page has and a
+   node sandbox has to be handed. */
+sandbox.crypto = require("crypto").webcrypto;
 vm.createContext(sandbox);
 ["prefs.js", "i18n.js", "notenames.js", "durations.js", "instruments.js",
  "instruments/flute.js", "instruments/piano.js", "pdfread.js", "pdfscore.js"
@@ -81,7 +84,10 @@ function bytesOf(name){ return new Uint8Array(fs.readFileSync(path.join(SAMPLES,
 var ENGRAVED = ["sample-engraved.pdf", "sample-plain.pdf", "sample-ascii85.pdf",
                 /* the same page with its staff lines stroked rather than filled,
                    which is how a real engraver draws them */
-                "sample-stroked.pdf"];
+                "sample-stroked.pdf",
+                /* and the same page locked the way a publisher locks a
+                   download: an owner password, an empty user one */
+                "sample-owner.pdf"];
 
 function readsAsScale(name){
   return PdfScore.bytes(bytesOf(name), inflate).then(function(doc){

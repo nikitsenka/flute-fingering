@@ -27,6 +27,9 @@ var ROOT = path.join(__dirname, "..");
 var sandbox = {};
 sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
+/* AES for an encrypted file comes from WebCrypto, which the page has and a
+   node sandbox has to be handed. */
+sandbox.crypto = require("crypto").webcrypto;
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(path.join(ROOT, "pdfread.js"), "utf8"), sandbox, {filename:"pdfread.js"});
 var PdfRead = sandbox.PdfRead;

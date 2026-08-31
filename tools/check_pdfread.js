@@ -44,6 +44,9 @@ var SAMPLES = path.join(__dirname, "samples");
 var sandbox = {};
 sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
+/* AES for an encrypted file comes from WebCrypto, which the page has and a
+   node sandbox has to be handed. */
+sandbox.crypto = require("crypto").webcrypto;
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(path.join(ROOT, "pdfread.js"), "utf8"), sandbox, {filename:"pdfread.js"});
 var PdfRead = sandbox.PdfRead;
@@ -71,7 +74,11 @@ function samples(){
     child.execFileSync("python3", [path.join(__dirname, "make_test_pdf.py")], {stdio:"ignore"});
   }
   return ["sample-plain.pdf", "sample-engraved.pdf", "sample-ascii85.pdf",
-          "sample-scan.pdf", "sample-stamped.pdf"];
+          "sample-scan.pdf", "sample-stamped.pdf",
+          /* encrypted with an owner password and an empty user one, which is
+             how a publisher locks a download: it has to read like the page it
+             is, not be turned away as protected */
+          "sample-owner.pdf"];
 }
 
 /* What make_test_pdf.py drew. Kept here as literals on purpose: reading them
@@ -181,9 +188,13 @@ function checkStamped(name, pg){
 function checkLocked(){
   var bytes = new Uint8Array(fs.readFileSync(path.join(SAMPLES, "sample-locked.pdf")));
   return PdfRead.open(bytes, inflate).then(function(){
-    problems.push("sample-locked.pdf: opened a protected file");
+    problems.push("sample-locked.pdf: opened a file that really is locked");
   }, function(err){
-    check("sample-locked.pdf: named as protected", /protected/.test(err.message), "said \"" + err.message + "\"");
+    /* the wording says which sort of locked it is -- a password, or an
+       encryption this reader does not know -- and the reader is shown a
+       translation of it, so the key is what has to hold */
+    check("sample-locked.pdf: refused as locked", err.i18n === "import.err.pdfLocked",
+          "said \"" + err.message + "\" (" + err.i18n + ")");
   });
 }
 
