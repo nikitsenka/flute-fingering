@@ -3,7 +3,7 @@
   "private": true,
   "description": "Static app: no build, no runtime dependencies. This file exists only so the checks in tools/ that need a browser have somewhere to record it.",
   "scripts": {
-    "check": "node tools/check_i18n.js && node tools/check_keys.js && node tools/check_songs.js && node tools/check_pitch.js && node tools/check_pdfread.js && node tools/check_pdfscore.js && node tools/check_audiopitch.js && node tools/check_audioimport.js && node tools/check_import_chain.js && node tools/check_audio.js",
+    "check": "node tools/check_i18n.js && node tools/check_keys.js && node tools/check_songs.js && node tools/check_pitch.js && node tools/check_pdfread.js && node tools/check_pdfscore.js && node tools/check_pdfscan.js && node tools/check_audiopitch.js && node tools/check_audioimport.js && node tools/check_import_chain.js && node tools/check_audio.js",
     "serve": "python3 -m http.server 8000"
   },
   "devDependencies": {
