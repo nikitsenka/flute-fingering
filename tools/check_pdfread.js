@@ -198,6 +198,67 @@ function checkLocked(){
   });
 }
 
+/* ---------- the fax coding a scanner writes ----------
+   A scanned page is one bilevel image and no marks at all, so the only way to
+   look at one is to decode it. This builds a tiny page by hand -- four rows of
+   64 pixels, sixteen white, thirty-two black, sixteen white -- in horizontal
+   mode, with the run codes written out from ITU-T T.4 here rather than taken
+   from the reader, so the two are independent readings of the same table. What
+   it checks is the machinery: bit order, mode codes, run assembly, packing.
+
+   What it cannot check is that a real scanner's output decodes; that was shown
+   against a real file, whose page came back 6.87% ink with its staff lines
+   eighteen pixels apart, which is a page of music and not noise. */
+function checkFax(){
+  var W16 = "101010", B32 = "000001101010", B0 = "0000110111";
+  var row = "001" + W16 + B32 + "001" + W16 + B0;
+  var bits = row + row + row + row;
+  while(bits.length % 8){ bits += "0"; }
+
+  var data = new Uint8Array(bits.length / 8);
+  for(var i = 0; i < data.length; i++){ data[i] = parseInt(bits.substr(i * 8, 8), 2); }
+
+  /* streamBytes checks that "endstream" follows the bytes it was told about,
+     so the pretend document has to look like a file at that point */
+  var text = "";
+  for(var t = 0; t < data.length; t++){ text += String.fromCharCode(data[t]); }
+
+  var doc = {
+    at: {}, streams: {}, cache: {}, gens: {}, crypt: null,
+    bytes: data, s: text + "\nendstream",
+    resolve: function(v){ return v; },
+    get: function(dict, key){ return dict ? dict[key] : null; },
+    inflate: inflate
+  };
+  /* a stream object holding the fax data, and the dictionary that describes it */
+  doc.streams[1] = {dict:{Filter:{name:"CCITTFaxDecode"},
+                          DecodeParms:{Columns:64, Rows:4, K:-1, BlackIs1:true},
+                          Length:data.length}, start:0};
+  doc.at[1] = 0;
+  doc.object = function(){ return doc.streams[1].dict; };
+
+  return PdfRead._streamBytes.call(doc, 1).then(function(out){
+    check("fax: four rows came back", out && out.length === 4 * 8, out ? out.length + " bytes" : "nothing");
+    if(!out || out.length < 8){ return; }
+    var ink = 0;
+    for(var y = 0; y < 4; y++){
+      for(var x = 0; x < 64; x++){
+        if((out[y * 8 + (x >> 3)] >> (7 - (x & 7))) & 1){ ink++; }
+      }
+    }
+    check("fax: the black bar is 32 wide on every row", ink === 4 * 32, ink + " black pixels");
+    var firstRow = [];
+    for(var x2 = 0; x2 < 64; x2++){ firstRow.push((out[x2 >> 3] >> (7 - (x2 & 7))) & 1); }
+    check("fax: the bar sits where it was put",
+          firstRow.slice(0, 16).every(function(v){ return v === 0; }) &&
+          firstRow.slice(16, 48).every(function(v){ return v === 1; }) &&
+          firstRow.slice(48).every(function(v){ return v === 0; }),
+          firstRow.join(""));
+  }, function(err){
+    problems.push("fax: " + err.message);
+  });
+}
+
 function checkRubbish(){
   /* Refused is not enough: the reason reaches a player, and picking the wrong
      file is the commonest way to arrive here. A file with no PDF header at all
@@ -251,15 +312,19 @@ samples().forEach(function(name){
   });
 });
 
-chain.then(checkLocked).then(checkRubbish).then(function(){
+chain.then(checkLocked).then(checkFax).then(checkRubbish).then(function(){
   if(problems.length){
     console.log("pdfread: " + problems.length + " problem(s)");
     problems.forEach(function(p){ console.log("  " + p); });
     process.exit(1);
   }
   console.log("pdfread: ok -- 6 samples: marks where they were drawn, scans and "
-            + "watermarked scans read as scans, a protected file named as protected,\n"
-            + "         and a file that is not a PDF said to be one rather than an empty page");
+            + "watermarked scans read as scans,\n"
+            + "         a file locked against printing opened and one locked against "
+            + "reading refused,\n"
+            + "         a file that is not a PDF said to be one rather than an empty "
+            + "page, and\n"
+            + "         a page of fax coding decoded back to the bar it was drawn from");
 }, function(err){
   console.error(err && err.stack || err);
   process.exit(1);

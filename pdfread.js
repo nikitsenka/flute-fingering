@@ -342,7 +342,7 @@
       var name = nameOf(self.resolve(f));
       var parm = self.resolve(parms[i]);
       chain = chain.then(function(data){
-        return decodeOne(self, name, data);
+        return decodeOne(self, name, data, parm);
       }).then(function(data){
         var predictor = isDict(parm) ? self.get(parm, "Predictor") : null;
         if(!predictor || predictor <= 1){ return data; }
@@ -352,16 +352,55 @@
     return chain;
   };
 
-  function decodeOne(doc, name, data){
+  function decodeOne(doc, name, data, parm){
     if(name === "FlateDecode" || name === "Fl"){ return doc.inflate(data); }
     if(name === "ASCII85Decode" || name === "A85"){ return ascii85(data); }
     if(name === "ASCIIHexDecode" || name === "AHx"){ return asciiHex(data); }
     if(name === "RunLengthDecode" || name === "RL"){ return runLength(data); }
-    /* Everything left is an image codec -- DCT, JPX, CCITT -- or the LZW nobody
-       has emitted this century. This layer has no reason to read pixels, so a
-       stream in one of those is only an error when someone asks for its
-       content, and a page's content stream is never in one. */
+    if(name === "CCITTFaxDecode" || name === "CCF"){
+      /* a scanned page: bilevel, and coded the way a fax is */
+      try { return Promise.resolve(ccittDecode(data, isDict(parm) ? parm : null, doc)); }
+      catch(e){ return Promise.reject(e); }
+    }
+    /* Everything left is a photograph's codec -- DCT, JPX -- or the LZW nobody
+       has emitted this century. Those are pictures of the world rather than of
+       a page, and nothing here would know what to do with one. */
     return Promise.reject(fail("unsupported stream filter " + name));
+  }
+
+  /* ---------- a bilevel image, pixel by pixel ----------
+     For a page that is a scan there is nothing else to read: no marks, no
+     glyphs, one picture. This hands back a sample per pixel, 1 for a set bit,
+     and says whether the image is a stencil mask, because what a mask paints
+     depends on the page under it. Deciding which way round the ink is belongs
+     to whoever is looking for music, not here. */
+  function plain(v){ return typeof v === "number" ? v : 0; }
+
+  function image(doc, ref){
+    /* a reference, or the object number a page's image mark carries */
+    var num = typeof ref === "number" ? ref : (ref && ref.ref);
+    var dict = typeof ref === "number" ? doc.object(ref) : doc.resolve(ref);
+    if(!isDict(dict)){ return Promise.reject(fail("no such image")); }
+    var w = plain(doc.get(dict, "Width"));
+    var h = plain(doc.get(dict, "Height"));
+    var bpc = plain(doc.get(dict, "BitsPerComponent")) || 1;
+    var mask = doc.get(dict, "ImageMask") === true;
+    if(!w || !h){ return Promise.reject(fail("an image with no size")); }
+    if(bpc !== 1){ return Promise.reject(fail("only bilevel images are read here")); }
+
+    return doc.streamBytes(num).then(function(bytes){
+      if(!bytes){ throw fail("an image with no data"); }
+      var stride = (w + 7) >> 3;
+      var out = new Uint8Array(w * h);
+      var rows = Math.min(h, Math.floor(bytes.length / stride));
+      for(var y = 0; y < rows; y++){
+        var at = y * stride, to = y * w;
+        for(var x = 0; x < w; x++){
+          out[to + x] = (bytes[at + (x >> 3)] >> (7 - (x & 7))) & 1;
+        }
+      }
+      return {width:w, height:h, rows:rows, samples:out, mask:mask};
+    });
   }
 
   /* ---------- the text-safe filters ----------
@@ -563,6 +602,186 @@
      ignored), so /Encrypt is looked for where it is written -- in a trailer or
      a cross-reference stream dictionary -- and confirmed against the security
      handler's own object. */
+  /* ---------- CCITT Group 4, the fax coding a scanner writes ----------
+   * A scanned page arrives as one image, and the image is usually not a JPEG:
+   * it is bilevel, and bilevel scans are coded the way faxes are. Nothing in a
+   * browser decodes that -- DecompressionStream knows deflate, createImageBitmap
+   * knows jpeg and png -- so it is done here, or the page cannot be looked at
+   * at all.
+   *
+   * The run-length tables are ITU-T T.4's, transcribed from RFC 804 rather than
+   * typed from memory. Group 4 codes each line against the line above it: a
+   * mode says where this line's next change sits relative to that one's, and
+   * only a horizontal run has to spell a length out.
+   */
+  var CCITT_WHITE = {
+    "00110101":0,"000111":1,"0111":2,"1000":3,"1011":4,"1100":5,"1110":6,"1111":7,"10011":8,
+    "10100":9,"00111":10,"01000":11,"001000":12,"000011":13,"110100":14,"110101":15,"101010":16,
+    "101011":17,"0100111":18,"0001100":19,"0001000":20,"0010111":21,"0000011":22,"0000100":23,
+    "0101000":24,"0101011":25,"0010011":26,"0100100":27,"0011000":28,"00000010":29,
+    "00000011":30,"00011010":31,"00011011":32,"00010010":33,"00010011":34,"00010100":35,
+    "00010101":36,"00010110":37,"00010111":38,"00101000":39,"00101001":40,"00101010":41,
+    "00101011":42,"00101100":43,"00101101":44,"00000100":45,"00000101":46,"00001010":47,
+    "00001011":48,"01010010":49,"01010011":50,"01010100":51,"01010101":52,"00100100":53,
+    "00100101":54,"01011000":55,"01011001":56,"01011010":57,"01011011":58,"01001010":59,
+    "01001011":60,"00110010":61,"00110011":62,"00110100":63,"11011":64,"10010":128,"010111":192,
+    "0110111":256,"00110110":320,"00110111":384,"01100100":448,"01100101":512,"01101000":576,
+    "01100111":640,"011001100":704,"011001101":768,"011010010":832,"011010011":896,
+    "011010100":960,"011010101":1024,"011010110":1088,"011010111":1152,"011011000":1216,
+    "011011001":1280,"011011010":1344,"011011011":1408,"010011000":1472,"010011001":1536,
+    "010011010":1600,"011000":1664,"010011011":1728
+  };
+
+  var CCITT_BLACK = {
+    "0000110111":0,"010":1,"11":2,"10":3,"011":4,"0011":5,"0010":6,"00011":7,"000101":8,
+    "000100":9,"0000100":10,"0000101":11,"0000111":12,"00000100":13,"00000111":14,
+    "000011000":15,"0000010111":16,"0000011000":17,"0000001000":18,"00001100111":19,
+    "00001101000":20,"00001101100":21,"00000110111":22,"00000101000":23,"00000010111":24,
+    "00000011000":25,"000011001010":26,"000011001011":27,"000011001100":28,"000011001101":29,
+    "000001101000":30,"000001101001":31,"000001101010":32,"000001101011":33,"000011010010":34,
+    "000011010011":35,"000011010100":36,"000011010101":37,"000011010110":38,"000011010111":39,
+    "000001101100":40,"000001101101":41,"000011011010":42,"000011011011":43,"000001010100":44,
+    "000001010101":45,"000001010110":46,"000001010111":47,"000001100100":48,"000001100101":49,
+    "000001010010":50,"000001010011":51,"000000100100":52,"000000110111":53,"000000111000":54,
+    "000000100111":55,"000000101000":56,"000001011000":57,"000001011001":58,"000000101011":59,
+    "000000101100":60,"000001011010":61,"000001100110":62,"000001100111":63,"0000001111":64,
+    "000011001000":128,"000011001001":192,"000001011011":256,"000000110011":320,
+    "000000110100":384,"000000110101":448,"0000001101100":512,"0000001101101":576,
+    "0000001001010":640,"0000001001011":704,"0000001001100":768,"0000001001101":832,
+    "0000001110010":896,"0000001110011":960,"0000001110100":1024,"0000001110101":1088,
+    "0000001110110":1152,"0000001110111":1216,"0000001010010":1280,"0000001010011":1344,
+    "0000001010100":1408,"0000001010101":1472,"0000001011010":1536,"0000001011011":1600,
+    "0000001100100":1664,"0000001100101":1728
+  };
+
+  var CCITT_EXT = {
+    "00000001000":1792,"00000001100":1856,"00000001101":1920,"000000010010":1984,
+    "000000010011":2048,"000000010100":2112,"000000010101":2176,"000000010110":2240,
+    "000000010111":2304,"000000011100":2368,"000000011101":2432,"000000011110":2496,
+    "000000011111":2560
+  };
+
+  function ccittBits(bytes){
+    var pos = 0;
+    return {
+      bit: function(){
+        var i = pos >> 3;
+        if(i >= bytes.length){ return -1; }
+        return (bytes[i] >> (7 - (pos++ & 7))) & 1;
+      }
+    };
+  }
+
+  /* a run is any number of make-up codes and one terminating code */
+  function ccittRun(bits, white){
+    var total = 0;
+    for(;;){
+      var code = "", run = null;
+      for(var n = 0; n < 14 && run === null; n++){
+        var b = bits.bit();
+        if(b < 0){ return null; }
+        code += b;
+        var table = white ? CCITT_WHITE : CCITT_BLACK;
+        if(table[code] !== undefined){ run = table[code]; }
+        else if(CCITT_EXT[code] !== undefined){ run = CCITT_EXT[code]; }
+      }
+      if(run === null){ return null; }
+      total += run;
+      if(run < 64){ return total; }
+    }
+  }
+
+  var CCITT_MODES = {"1":"V0", "011":"VR1", "010":"VL1", "001":"H", "0001":"P",
+                     "000011":"VR2", "000010":"VL2", "0000011":"VR3", "0000010":"VL3",
+                     "000000000001":"EOL"};
+  var CCITT_SHIFT = {V0:0, VR1:1, VR2:2, VR3:3, VL1:-1, VL2:-2, VL3:-3};
+
+  /* -> rows of changing elements, which is all the caller needs to paint or to
+     measure: a row is white until the first, black to the second, and so on */
+  function ccittG4(bytes, columns, rows){
+    var bits = ccittBits(bytes);
+    var ref = [columns, columns];
+    var out = [];
+
+    while(out.length < rows){
+      var cur = [];
+      var a0 = -1, color = 0, stop = false;
+
+      while(a0 < columns){
+        var b1 = columns, b2 = columns;
+        for(var i = 0; i < ref.length; i++){
+          if(ref[i] > a0 && (i & 1) === color){
+            b1 = ref[i];
+            b2 = (i + 1 < ref.length) ? ref[i + 1] : columns;
+            break;
+          }
+        }
+
+        var code = "", mode = null;
+        for(var n = 0; n < 14 && mode === null; n++){
+          var b = bits.bit();
+          if(b < 0){ mode = "EOF"; break; }
+          code += b;
+          mode = CCITT_MODES[code] || null;
+        }
+        if(mode === null || mode === "EOF" || mode === "EOL"){ stop = true; break; }
+
+        if(mode === "P"){ a0 = b2; continue; }
+
+        if(mode === "H"){
+          var from = a0 < 0 ? 0 : a0;
+          var r1 = ccittRun(bits, color === 0);
+          var r2 = ccittRun(bits, color !== 0);
+          if(r1 === null || r2 === null){ stop = true; break; }
+          var a1 = Math.min(from + r1, columns);
+          var a2 = Math.min(a1 + r2, columns);
+          cur.push(a1, a2);
+          a0 = a2;
+          continue;
+        }
+
+        var at = Math.max(0, Math.min(b1 + CCITT_SHIFT[mode], columns));
+        cur.push(at);
+        a0 = at;
+        color ^= 1;
+      }
+
+      if(stop && !cur.length){ break; }
+      out.push(cur);
+      ref = cur.concat([columns, columns]);
+      if(stop){ break; }
+    }
+    return out;
+  }
+
+  /* the filter's own answer: packed bits, one per pixel, in the convention the
+     spec asks for -- 0 is black unless /BlackIs1 says otherwise */
+  function ccittDecode(data, parms, doc){
+    var columns = (parms && num(doc.get(parms, "Columns"))) || 1728;
+    var rows = (parms && num(doc.get(parms, "Rows"))) || 0;
+    var k = (parms && num(doc.get(parms, "K"))) || 0;
+    var blackIs1 = parms ? doc.get(parms, "BlackIs1") === true : false;
+    if(k >= 0){ throw fail("only Group 4 fax coding is read here"); }
+
+    var lines = ccittG4(data, columns, rows || 1 << 20);
+    var stride = (columns + 7) >> 3;
+    var out = new Uint8Array(stride * lines.length);
+    if(!blackIs1){ out.fill(0xFF); }              /* white is 1 unless told otherwise */
+
+    lines.forEach(function(changes, y){
+      var at = y * stride;
+      for(var i = 0; i + 1 <= changes.length; i += 2){
+        var from = changes[i];
+        var to = (i + 1 < changes.length) ? changes[i + 1] : columns;
+        for(var x = from; x < to && x < columns; x++){
+          var byte = at + (x >> 3), bit = 7 - (x & 7);
+          if(blackIs1){ out[byte] |= (1 << bit); } else { out[byte] &= ~(1 << bit); }
+        }
+      }
+    });
+    return out;
+  }
+
   /* ---------- a file that is "protected" but not locked ----------
      Most sheet music that arrives encrypted has an owner password and an empty
      user one: the restrictions are on printing and copying, and every reader
@@ -1010,6 +1229,8 @@
               var placed = apply(gs.ctm, 0, 0), corner = apply(gs.ctm, 1, 1);
               marks.images.push({
                 name: name,
+                /* the object number, so a reader that wants the pixels can ask */
+                ref: xo.num,
                 x: Math.min(placed[0], corner[0]), y: Math.min(placed[1], corner[1]),
                 w: Math.abs(corner[0] - placed[0]), h: Math.abs(corner[1] - placed[1]),
                 pixels: {w: doc.get(xo.dict, "Width") || 0, h: doc.get(xo.dict, "Height") || 0}
@@ -1267,6 +1488,9 @@
 
   global.PdfRead = {
     open: open,
+    image: image,
+    /* the checks drive one stream without a whole document around it */
+    _streamBytes: Doc.prototype.streamBytes,
     page: page,
     classify: classify,
     fonts: fonts,
