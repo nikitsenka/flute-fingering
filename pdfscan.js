@@ -102,6 +102,55 @@
     return out;
   }
 
+  /* ---------- chord grids ----------
+     A guitar diagram is the one other thing on a page of songs made of
+     parallel lines: four to six of them, short, in a little box over the vocal
+     staff. They are not staves -- their lines are far too short -- but the
+     shapes inside them are notehead-sized, so anything found in one has to be
+     thrown away. Nothing new has to be looked for: the same row scan that
+     finds staff lines finds these, at a shorter reach. */
+  function grids(ink, w, h, step){
+    var rows = [];
+    for(var y = 0; y < h; y++){
+      var run = 0, best = 0, from = 0, bestFrom = 0, at = y * w;
+      for(var x = 0; x < w; x++){
+        if(ink[at + x]){
+          if(!run){ from = x; }
+          run++;
+          if(run > best){ best = run; bestFrom = from; }
+        } else { run = 0; }
+      }
+      if(best >= step * 1.5 && best < w * 0.33){ rows.push({y:y, x0:bestFrom, x1:bestFrom + best}); }
+    }
+
+    var boxes = [], group = null;
+    rows.forEach(function(r){
+      if(group && r.y - group.y1 <= step * 1.2 &&
+         r.x0 < group.x1 + step && r.x1 > group.x0 - step){
+        group.y1 = r.y;
+        group.lines++;
+        group.x0 = Math.min(group.x0, r.x0);
+        group.x1 = Math.max(group.x1, r.x1);
+        return;
+      }
+      if(group && group.lines >= 3){ boxes.push(group); }
+      group = {x0:r.x0, x1:r.x1, y0:r.y, y1:r.y, lines:1};
+    });
+    if(group && group.lines >= 3){ boxes.push(group); }
+
+    /* a grid is small and roughly square; a run of short lines the width of the
+       page is something else and is left alone */
+    return boxes.filter(function(b){
+      return (b.x1 - b.x0) < w * 0.25 && (b.y1 - b.y0) < step * 6;
+    });
+  }
+
+  function inside(boxes, x, y, step){
+    return boxes.some(function(b){
+      return x > b.x0 - step && x < b.x1 + step && y > b.y0 - step && y < b.y1 + step;
+    });
+  }
+
   /* ---------- systems ----------
      Staves sit closer inside a system than between systems, so the gaps fall
      into two groups and the wide ones are the breaks. A page of one staff per
@@ -289,6 +338,7 @@
     var clean = withoutLines(ink, w, h, list);
     var solid = cores(clean, w, h, list[0].step);
     var groups = systems(list);
+    var boxes = grids(ink, w, h, list[0].step);
 
     /* the melody is the top staff of a system: the vocal line of a song, the
        right hand of a piano part. The rest is accompaniment and would
@@ -314,6 +364,7 @@
            what it never has is a stem. Neither does a whole note, but a melody
            is not made of them, and a wrong note is worse than a missing one. */
         if(!hasStem(ink, w, h, b, step)){ return; }
+        if(inside(boxes, b.x, b.y, step)){ return; }
         here.push({x:b.x, y:b.y, filled:true});
       });
 
@@ -324,6 +375,7 @@
         if(b.w < b.h){ return; }
         if(!onStep(staff, b.y)){ return; }
         if(!hasStem(ink, w, h, {x:b.x, y:b.y, w:step}, step)){ return; }
+        if(inside(boxes, b.x, b.y, step)){ return; }
         here.push({x:b.x, y:b.y, filled:false});
       });
 
@@ -344,7 +396,7 @@
       kept.forEach(function(n){ notes.push({staff:staff, x:n.x, y:n.y, filled:n.filled}); });
     });
 
-    return {staves:list, systems:groups, wanted:wanted, notes:notes};
+    return {staves:list, systems:groups, wanted:wanted, notes:notes, grids:boxes};
   }
 
   var LETTERS = ["c", "d", "e", "f", "g", "a", "b"];
