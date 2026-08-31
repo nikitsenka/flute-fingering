@@ -157,6 +157,7 @@ window.I18N_STRINGS.zh = {
   "import.pdf.staves": "{n} 行谱表被自上而下读作一条旋律。",
   "import.pdf.bass": "另一谱号的谱表（钢琴左手）上的 {n} 个音符已略过。",
   "import.pdf.scanned": "从页面图像读取：大约每十个音符可能缺一个，节奏是根据墨迹推断的，并非印刷的时值。练习前请与纸质谱对照。",
+  "import.pdf.metre": "未读取拍号：每小节按四拍计算。若乐曲用其他拍号写成——3/4，或摇摆民谣的 12/8——即使每个音符都对，小节线也会落错位置。",
   "import.err.pdfScan": "这个 PDF 是扫描件，不是矢量乐谱",
   "import.err.pdfLocked": "这个 PDF 有密码保护",
   "import.err.pdfNot": "这个文件不是 PDF",

@@ -182,6 +182,7 @@ window.I18N_STRINGS.en = {
   "import.pdf.staves": "{n} staves were read as one line, top to bottom.",
   "import.pdf.bass": "{n} note(s) on staves in another clef — the left hand of a piano part — were left out.",
   "import.pdf.scanned": "Read off a picture of the page: about one note in ten may be missing, and the rhythm is a reading of the ink rather than the printed lengths. Check it against the paper before learning from it.",
+  "import.pdf.metre": "The time signature was not read: bars are counted as four beats. A piece written in another metre — 3/4, or the 12/8 of a swung ballad — will have its barlines in the wrong places even where every note is right.",
   "import.err.pdfScan": "this PDF is a scan, not an engraving",
   "import.err.pdfLocked": "this PDF is password-protected",
   "import.err.pdfNot": "this file is not a PDF",

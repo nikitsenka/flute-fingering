@@ -164,6 +164,7 @@ window.I18N_STRINGS.fr = {
   "import.pdf.staves": "{n} portées ont été lues comme une seule ligne, de haut en bas.",
   "import.pdf.bass": "{n} note(s) sur des portées dans une autre clé — la main gauche d'une partie de piano — ont été laissées de côté.",
   "import.pdf.scanned": "Lu sur une image de la page : environ une note sur dix peut manquer, et le rythme est une lecture de l'encre, non des durées imprimées. Vérifiez sur le papier avant de travailler ce morceau.",
+  "import.pdf.metre": "La mesure n'a pas été lue : un temps de mesure vaut quatre battements. Si le morceau est écrit dans une autre mesure — 3/4, ou le 12/8 d'une ballade balancée — les barres tomberont au mauvais endroit, même si chaque note est juste.",
   "import.err.pdfScan": "ce PDF est un scan, pas une gravure",
   "import.err.pdfLocked": "ce PDF est protégé par un mot de passe",
   "import.err.pdfNot": "ce fichier n'est pas un PDF",

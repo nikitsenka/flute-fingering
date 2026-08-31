@@ -164,6 +164,7 @@ window.I18N_STRINGS.de = {
   "import.pdf.staves": "{n} Systeme wurden von oben nach unten als eine Linie gelesen.",
   "import.pdf.bass": "{n} Note(n) auf Systemen in einem anderen Schlüssel — der linken Hand eines Klavierparts — wurden ausgelassen.",
   "import.pdf.scanned": "Von einem Bild der Seite gelesen: etwa jede zehnte Note kann fehlen, und der Rhythmus ist aus der Tinte gelesen und nicht aus den gedruckten Notenwerten. Vor dem Üben mit dem Papier vergleichen.",
+  "import.pdf.metre": "Die Taktart wurde nicht gelesen: ein Takt zählt vier Schläge. Steht das Stück in einer anderen Taktart — 3/4 oder das 12/8 einer wiegenden Ballade —, sitzen die Taktstriche falsch, auch wenn jede Note stimmt.",
   "import.err.pdfScan": "dieses PDF ist ein Scan, kein Notensatz",
   "import.err.pdfLocked": "dieses PDF ist passwortgeschützt",
   "import.err.pdfNot": "diese Datei ist kein PDF",

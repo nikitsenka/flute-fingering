@@ -164,6 +164,7 @@ window.I18N_STRINGS.es = {
   "import.pdf.staves": "{n} pentagramas se leyeron como una sola línea, de arriba abajo.",
   "import.pdf.bass": "{n} nota(s) en pentagramas con otra clave — la mano izquierda de un piano — se dejaron fuera.",
   "import.pdf.scanned": "Leído de una imagen de la página: puede faltar una de cada diez notas, y el ritmo es una lectura de la tinta, no de las duraciones impresas. Compáralo con el papel antes de estudiarlo.",
+  "import.pdf.metre": "No se leyó el compás: cada compás se cuenta como cuatro tiempos. Si la pieza está en otro compás — 3/4, o el 12/8 de una balada balanceada — las barras caerán en el lugar equivocado aunque cada nota sea correcta.",
   "import.err.pdfScan": "este PDF es un escaneo, no una partitura grabada",
   "import.err.pdfLocked": "este PDF está protegido con contraseña",
   "import.err.pdfNot": "este archivo no es un PDF",

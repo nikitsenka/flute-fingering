@@ -1248,6 +1248,10 @@
          it goes first, because it is the one thing that changes whether the
          piece is worth practising from */
       if(line.printed.scanned){ notes.unshift(I18n.t("import.pdf.scanned")); }
+      /* Nothing reads the time signature off a page yet, and a bar counted as
+         four beats when the page says twelve eighths puts every barline in the
+         wrong place -- which is not visible in the notes themselves. */
+      notes.push(I18n.t("import.pdf.metre"));
     }
     if(line.trouble && line.trouble.verdict === "wide"){
       notes.push(I18n.t("import.audio.wide", {spread:line.trouble.spread, span:line.trouble.span}));
