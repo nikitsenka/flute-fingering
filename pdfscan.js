@@ -455,7 +455,13 @@
         here.push({x:b.x, y:b.y, filled:true, w:b.w, h:b.h, fill:b.n / (b.w * b.h)});
       });
 
-      holes(ink, w, h, y0, y1).forEach(function(b){
+      /* Holes are looked for after the staff lines are gone. With them still
+         in, a space between two lines closed off by a barline at one end and a
+         rest at the other is an enclosed patch of white, exactly like the
+         inside of a half note -- that is where the false one in the first
+         system came from. A notehead's ring is not a staff line and survives
+         the erasing, so nothing real is lost. */
+      holes(clean, w, h, y0, y1).forEach(function(b){
         if(b.full){ return; }
         /* The hole in a half note is nearly the size of the head around it --
            sixteen pixels across a space of eighteen on the page this was built
