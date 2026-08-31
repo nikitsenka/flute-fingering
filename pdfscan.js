@@ -222,7 +222,7 @@
      mark, and the last two are told apart by size. */
   function cores(mask, w, h, step){
     var least = Math.max(3, Math.round(step * 0.5));
-    var out = new Uint8Array(w * h);
+    var wide = new Uint8Array(w * h);
     for(var y = 0; y < h; y++){
       var at = y * w, x = 0;
       while(x < w){
@@ -230,7 +230,26 @@
         var from = x;
         while(x < w && mask[at + x]){ x++; }
         if(x - from >= least){
-          for(var k = from; k < x; k++){ out[at + k] = 1; }
+          for(var k = from; k < x; k++){ wide[at + k] = 1; }
+        }
+      }
+    }
+
+    /* And the mirror of that. A tie or a slur is wide -- it survives the test
+       above -- but it is only two or three pixels deep, where a head is most of
+       a space. Dropping the shallow ones unglues a head from the tie it is
+       joined to; without this a head and its tie are one long blob, too wide to
+       be a head, and the note is lost rather than found. */
+    var deep = Math.max(3, Math.round(step * 0.4));
+    var out = new Uint8Array(w * h);
+    for(var x2 = 0; x2 < w; x2++){
+      var y2 = 0;
+      while(y2 < h){
+        if(!wide[y2 * w + x2]){ y2++; continue; }
+        var top = y2;
+        while(y2 < h && wide[y2 * w + x2]){ y2++; }
+        if(y2 - top >= deep){
+          for(var k2 = top; k2 < y2; k2++){ out[k2 * w + x2] = 1; }
         }
       }
     }
@@ -373,27 +392,36 @@
 
       blobs(solid, w, h, y0, y1, 3000).forEach(function(b){
         if(b.full){ return; }
+        /* A rest is a filled rectangle and fills its box; a head is an ellipse
+           and leaves the corners empty. The two are the same size and sit in
+           the same places, so this is the difference. It only means anything
+           once the ties are gone, which is what the second pass above is for. */
+        if(b.n / (b.w * b.h) > 0.93){ return; }
         if(b.w < step * 0.6 || b.w > step * 1.9){ return; }
         if(b.h < step * 0.4 || b.h > step * 1.3){ return; }
-        if(b.w < b.h){ return; }                       /* a head leans wide */
+        /* a head leans wide -- and a mark as tall as it is broad is something
+           else: the corner of a rest, a letter, the dot of a chord grid */
+        if(b.w < b.h * 1.1){ return; }
         if(!onStep(staff, b.y)){ return; }
         /* A rest is the same size as a head and lands on the staff like one;
            what it never has is a stem. Neither does a whole note, but a melody
            is not made of them, and a wrong note is worse than a missing one. */
         if(!hasStem(ink, w, h, b, step)){ return; }
         if(inside(boxes, b.x, b.y, step)){ return; }
-        here.push({x:b.x, y:b.y, filled:true});
+        here.push({x:b.x, y:b.y, filled:true, w:b.w, h:b.h, fill:b.n / (b.w * b.h)});
       });
 
       holes(ink, w, h, y0, y1).forEach(function(b){
         if(b.full){ return; }
         if(b.w < step * 0.3 || b.w > step * 1.2){ return; }
         if(b.h < step * 0.2 || b.h > step * 0.9){ return; }
-        if(b.w < b.h){ return; }
+        /* the hole in a half note is an ellipse lying down, half again as wide
+           as it is tall; a square hole is a gap between two other things */
+        if(b.w < b.h * 1.2){ return; }
         if(!onStep(staff, b.y)){ return; }
         if(!hasStem(ink, w, h, {x:b.x, y:b.y, w:step}, step)){ return; }
         if(inside(boxes, b.x, b.y, step)){ return; }
-        here.push({x:b.x, y:b.y, filled:false});
+        here.push({x:b.x, y:b.y, filled:false, w:b.w, h:b.h, fill:b.n / (b.w * b.h)});
       });
 
       here.sort(function(a, b){ return a.x - b.x; });
@@ -410,7 +438,9 @@
         kept.push(n);
       });
 
-      kept.forEach(function(n){ notes.push({staff:staff, x:n.x, y:n.y, filled:n.filled}); });
+      kept.forEach(function(n){
+        notes.push({staff:staff, x:n.x, y:n.y, filled:n.filled, w:n.w, h:n.h, fill:n.fill});
+      });
     });
 
     return {staves:list, systems:groups, wanted:wanted, notes:notes, grids:boxes};
