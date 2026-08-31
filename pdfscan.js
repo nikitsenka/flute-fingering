@@ -140,9 +140,26 @@
 
     /* a grid is small and roughly square; a run of short lines the width of the
        page is something else and is left alone */
-    return boxes.filter(function(b){
+    boxes = boxes.filter(function(b){
       return (b.x1 - b.x0) < w * 0.25 && (b.y1 - b.y0) < step * 6;
     });
+
+    /* The line found first is usually the nut, the thick one across the top;
+       the frets under it are thinner and shorter and were not long enough to be
+       noticed on their own. So each box is grown downwards while the rows below
+       it still carry ink across most of its width -- which is what a fret does
+       and what the empty paper beside a staff does not. */
+    boxes.forEach(function(b){
+      var wide = (b.x1 - b.x0) * 0.4;
+      var quiet = 0;
+      for(var y = b.y1 + 1; y < h && quiet < step * 0.8; y++){
+        var n = 0;
+        for(var x = b.x0; x <= b.x1; x++){ if(ink[y * w + x]){ n++; } }
+        if(n >= wide){ b.y1 = y; quiet = 0; } else { quiet++; }
+      }
+    });
+
+    return boxes;
   }
 
   function inside(boxes, x, y, step){
