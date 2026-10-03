@@ -114,13 +114,37 @@
       return Promise.resolve(next(0)).then(function(){
         if(!pages.length){ throw fail("import.err.pdfEmpty", "this PDF has no pages"); }
 
-        /* The first page decides what sort of file this is. A scan carries one
-           image and no geometry, and no amount of work here recovers notes
-           from it -- that is image recognition, a different program. */
-        var kind = global.PdfRead.classify(pages[0]);
-        if(kind.kind === "empty" || kind.kind === "sparse"){
-          throw fail("import.err.pdfEmpty", "there is not enough on this page: " + kind.why);
+        /* What sort of file this is comes from the first page that has music on
+           it, which is not always the first page. A song downloaded as a PDF
+           often opens on a title page or a sheet of lyrics -- the file this was
+           written against opens on lyrics and keeps its music on pages 2 and 3
+           -- and judging page 1 alone refused the whole file for being thin
+           while the music sat untouched behind it. A page with too little on it
+           decides nothing, so it is passed over; a file where every page is
+           like that is refused, as it was before.
+
+           Nothing is skipped by this, only the verdict is: the pages are all
+           read either way, so a cover page costs no more than the parse it was
+           already given. */
+        var verdicts = pages.map(function(pg){ return global.PdfRead.classify(pg); });
+        var at = 0;
+        while(at < verdicts.length &&
+              (verdicts[at].kind === "empty" || verdicts[at].kind === "sparse")){ at++; }
+
+        if(at >= verdicts.length){
+          /* Quote the page that came closest rather than the first one: a
+             complaint about the title page is no help when page 3 was the one
+             that nearly read as music. */
+          var best = 0;
+          verdicts.forEach(function(v, i){
+            if(v.marks + v.glyphs > verdicts[best].marks + verdicts[best].glyphs){ best = i; }
+          });
+          throw fail("import.err.pdfEmpty", verdicts.length > 1
+            ? "no page of this PDF reads as music; page " + (best + 1) +
+              " came closest: " + verdicts[best].why
+            : "there is not enough on this page: " + verdicts[0].why);
         }
+        var kind = verdicts[at];
 
         var doc = {kind:"pdf", pages:pages, verdict:kind, seen:null, scan:null};
         if(kind.kind !== "scan"){ return doc; }

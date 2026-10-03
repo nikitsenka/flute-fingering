@@ -25,6 +25,9 @@ Six files, because the reader has to tell them apart:
                           which is what anything exported this decade uses --
                           a different key derivation entirely, and the one a
                           reader is likeliest to stop at
+    sample-cover.pdf      a title page, then the engraved page: the music is not
+                          on page 1, and a reader that judges the file by its
+                          first page throws the whole thing away
 
 Written by hand rather than with a library, for the same reason the app unpacks
 a .mxl by hand: this repository vendors what it needs and installs nothing.
@@ -639,6 +642,32 @@ def aes256_locked():
             % (top, doc_id.hex(), doc_id.hex(), start)).encode("latin-1")
     return bytes(out)
 
+
+def cover_page():
+    """A title page, and then the music.
+
+    A song downloaded as a PDF rarely begins with the score: there is a cover,
+    or a sheet of lyrics, and the staves start on page 2. Page 1 here is a line
+    of text and nothing else -- too thin to be music, which is the correct thing
+    to say about *it* and the wrong thing to say about the file.
+    """
+    cover = (b"BT /F1 18 Tf 60 %d Td (Smells Like A Title Page) Tj ET\n"
+             % (H - 80))
+    return build({
+        1: b"<< /Type /Catalog /Pages 2 0 R >>",
+        2: b"<< /Type /Pages /Kids [3 0 R 6 0 R] /Count 2 >>",
+        3: ("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %d %d] "
+            "/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>"
+            % (W, H)).encode("latin-1"),
+        4: stream_obj("", cover, True),
+        5: b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        6: ("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %d %d] "
+            "/Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>"
+            % (W, H)).encode("latin-1"),
+        7: stream_obj("", page_content(), True),
+    }, 1)
+
+
 def main():
     outdir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "samples")
     os.makedirs(outdir, exist_ok=True)
@@ -652,6 +681,7 @@ def main():
         "sample-stamped.pdf": stamped(),
         "sample-locked.pdf": locked(),
         "sample-aes256.pdf": aes256_locked(),
+        "sample-cover.pdf": cover_page(),
     }
     for name, data in files.items():
         path = os.path.join(outdir, name)

@@ -92,7 +92,11 @@ var ENGRAVED = ["sample-engraved.pdf", "sample-plain.pdf", "sample-ascii85.pdf",
                 /* and the same page locked the way a publisher locks a
                    download: an owner password, an empty user one -- under RC4,
                    and under the AES-256 a file exported this decade uses */
-                "sample-owner.pdf", "sample-aes256.pdf"];
+                "sample-owner.pdf", "sample-aes256.pdf",
+                /* and the same page again behind a title page, which is where a
+                   downloaded song usually keeps its music: the file has to be
+                   judged by the first page that has music on it, not by page 1 */
+                "sample-cover.pdf"];
 
 function readsAsScale(name){
   return PdfScore.bytes(bytesOf(name), inflate).then(function(doc){
@@ -263,8 +267,8 @@ run.then(function(){
   }
   console.log("pdfscore: ok -- the drawn scale reads back as a scale, three staves,\n" +
               "          in every compression the samples use, with the staff lines\n" +
-              "          stroked as well as filled, and under RC4 as well as\n" +
-              "          AES-256; a scan and a protected file are refused rather\n" +
+              "          stroked as well as filled, under RC4 and AES-256, and behind\n" +
+              "          a title page; a scan and a protected file are refused rather\n" +
               "          than guessed at");
 }).catch(function(err){
   console.error(String(err && err.stack || err));
