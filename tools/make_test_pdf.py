@@ -28,6 +28,10 @@ Six files, because the reader has to tell them apart:
     sample-cover.pdf      a title page, then the engraved page: the music is not
                           on page 1, and a reader that judges the file by its
                           first page throws the whole thing away
+    sample-trailing.pdf   the engraved page with one byte of whitespace counted
+                          into /Length past the end of the deflate data, which
+                          node's zlib forgives and a browser's decompressor
+                          does not
 
 Written by hand rather than with a library, for the same reason the app unpacks
 a .mxl by hand: this repository vendors what it needs and installs nothing.
@@ -668,6 +672,37 @@ def cover_page():
     }, 1)
 
 
+def trailing_newline():
+    """The engraved page with one byte too many in /Length.
+
+    A producer writes the stream, then an end-of-line, then "endstream", and
+    counts that end-of-line in /Length. The deflate data is intact; there is
+    simply one byte of whitespace after it.
+
+    The two decompressors disagree about that byte. node's zlib ignores a tail
+    it did not ask for, so every check in tools/ passes; the browser's
+    DecompressionStream follows the Compression Streams spec, where trailing
+    junk is an error, and throws. The file the PDF import was built against does
+    this on nine streams -- among them the contents of both its scanned pages --
+    so the import failed in a browser and nowhere else, which is the worst place
+    for a bug to live.
+    """
+    data = zlib.compress(page_content(), 6) + b"\r"
+    return build({
+        1: b"<< /Type /Catalog /Pages 2 0 R >>",
+        2: b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        3: ("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %d %d] "
+            "/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>"
+            % (W, H)).encode("latin-1"),
+        # /Length counts the trailing byte, which is the whole point: a reader
+        # that goes looking for "endstream" instead would trim it and never see
+        # the bug.
+        4: ("<< /Filter /FlateDecode /Length %d >>\nstream\n" % len(data)).encode("latin-1")
+           + data + b"\nendstream",
+        5: b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    }, 1)
+
+
 def main():
     outdir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "samples")
     os.makedirs(outdir, exist_ok=True)
@@ -682,6 +717,7 @@ def main():
         "sample-locked.pdf": locked(),
         "sample-aes256.pdf": aes256_locked(),
         "sample-cover.pdf": cover_page(),
+        "sample-trailing.pdf": trailing_newline(),
     }
     for name, data in files.items():
         path = os.path.join(outdir, name)

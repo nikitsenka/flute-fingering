@@ -45,8 +45,17 @@ sandbox.globalThis = sandbox;
    node sandbox has to be handed. */
 sandbox.crypto = require("crypto").webcrypto;
 vm.createContext(sandbox);
+/* The browser's decompressor is stricter than node's zlib, and node has the
+   same one the browser does -- so the sandbox is handed it, and one check below
+   runs the shipped browserInflate against it instead of the forgiving path
+   every other check here takes. */
+sandbox.DecompressionStream = typeof DecompressionStream === "function" ? DecompressionStream : null;
+sandbox.Response = typeof Response === "function" ? Response : null;
 ["prefs.js", "i18n.js", "notenames.js", "durations.js", "instruments.js",
- "instruments/flute.js", "instruments/piano.js", "pdfread.js", "pdfscore.js"
+ "instruments/flute.js", "instruments/piano.js", "pdfread.js",
+ /* a scan goes to pdfscan.js, and without it any scanned file -- including one
+    handed to this check with PDF= -- fails as "the scan reader is not loaded" */
+ "pdfscan.js", "pdfscore.js"
 ].forEach(function(f){
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), sandbox, {filename:f});
 });
@@ -65,7 +74,8 @@ function samples(){
   /* Every file this check wants is tested for, not just the directory: a
      checkout that ran this before a sample was added already has the directory,
      and would then fail on a missing file instead of writing it. */
-  var need = ENGRAVED.concat(["sample-scan.pdf", "sample-locked.pdf"]);
+  var need = ENGRAVED.concat(["sample-scan.pdf", "sample-locked.pdf",
+                             "sample-trailing.pdf"]);
   if(need.some(function(n){ return !fs.existsSync(path.join(SAMPLES, n)); })){
     child.execFileSync("python3", [path.join(__dirname, "make_test_pdf.py")], {stdio:"ignore"});
   }
@@ -165,7 +175,14 @@ function readsSomething(file){
     console.log(path.basename(file));
     ok("it found staves", seen.staves > 0, seen.staves + " staves");
     ok("it found notes", line && line.notes > 0, seen.notes.length + " heads");
-    ok("the heads came from the music font", seen.glyphs, seen.glyphs ? "glyphs" : "filled curves");
+    /* Only an engraving can answer this: a scan has no glyphs in it at all,
+       and asking a photograph which font its noteheads came from reports a
+       failure about a file that is behaving correctly. */
+    if(seen.scanned){
+      console.log("  --  read off a scan, so there is no font to have come from");
+    } else {
+      ok("the heads came from the music font", seen.glyphs, seen.glyphs ? "glyphs" : "filled curves");
+    }
     ok("the notes are inside a sane range", !line || (line.lo >= 21 && line.hi <= 108),
        line ? line.lo + ".." + line.hi : "no line");
     if(line){
@@ -233,6 +250,38 @@ function checkScanBars(){
   });
 }
 
+/* ---------- the decompressor the app actually uses ----------
+   Every other check here hands pdfscore node's zlib, which forgives a stream
+   whose /Length counts a byte past the end of the deflate data. The browser's
+   DecompressionStream does not: the Compression Streams spec makes trailing
+   junk an error. A real file did exactly that on nine streams, and the import
+   died on the live page while every check stayed green -- so the gap is not
+   hypothetical, and closing it is what this is for.
+
+   node carries the same spec-strict decompressor, so this runs the shipped
+   browserInflate -- not a stand-in for it -- over a sample built with that
+   extra byte. */
+function readsThroughTheBrowserDecoder(){
+  var name = "sample-trailing.pdf";
+  console.log(name + " (through the browser's strict decompressor)");
+  if(!sandbox.DecompressionStream){
+    console.log("  skipped: this node has no DecompressionStream");
+    return Promise.resolve();
+  }
+  /* no inflate argument: that is what makes pdfscore reach for its own */
+  return PdfScore.bytes(bytesOf(name)).then(function(doc){
+    PdfScore.analyze(doc);
+    var got = doc.seen.notes;
+    ok("a byte of whitespace past the data does not stop it",
+       got.length === EXPECTED.length, got.length + " heads");
+    ok("the scale that was drawn", got.join(" ") === EXPECTED.join(" "),
+       got.slice(0, 8).join(" ") + (got.length > 8 ? " ..." : ""));
+  }, function(err){
+    ok("a byte of whitespace past the data does not stop it", false,
+       String(err && err.message || err));
+  });
+}
+
 function refuses(name, why){
   return PdfScore.bytes(bytesOf(name), inflate).then(function(){
     ok(name + " is refused (" + why + ")", false, "it was accepted");
@@ -255,6 +304,8 @@ realFiles().forEach(function(file){
 
 run.then(function(){
   checkScanBars();
+  return readsThroughTheBrowserDecoder();
+}).then(function(){
   return refuses("sample-scan.pdf", "a photograph has no coordinates in it");
 }).then(function(){
   return refuses("sample-locked.pdf", "the file is protected");
@@ -268,8 +319,9 @@ run.then(function(){
   console.log("pdfscore: ok -- the drawn scale reads back as a scale, three staves,\n" +
               "          in every compression the samples use, with the staff lines\n" +
               "          stroked as well as filled, under RC4 and AES-256, and behind\n" +
-              "          a title page; a scan and a protected file are refused rather\n" +
-              "          than guessed at");
+              "          a title page; it survives a stream whose length overruns the\n" +
+              "          data when read through the browser's own strict decompressor;\n" +
+              "          a scan and a protected file are refused rather than guessed at");
 }).catch(function(err){
   console.error(String(err && err.stack || err));
   process.exit(1);

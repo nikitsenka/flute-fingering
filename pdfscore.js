@@ -80,14 +80,42 @@
      Streams inside a PDF are deflated, and the two callers differ: the page has
      DecompressionStream, node has zlib. pdfread.js takes the inflater as an
      argument for that reason, so this only has to say which one it is. */
-  function browserInflate(bytes){
-    if(!global.DecompressionStream){
-      throw fail("import.err.pdfInflate", "this browser cannot unpack a compressed PDF");
-    }
+  /* PDF's own idea of whitespace, 32000-1 table 1. */
+  var BLANK = [0x00, 0x09, 0x0A, 0x0C, 0x0D, 0x20];
+
+  function inflateExactly(bytes){
     var stream = new global.Response(bytes).body
       .pipeThrough(new global.DecompressionStream("deflate"));
     return new global.Response(stream).arrayBuffer().then(function(buf){
       return new Uint8Array(buf);
+    });
+  }
+
+  /* A stream whose /Length counts one byte more than the deflate data is a
+     common thing for a producer to write -- the end-of-line before "endstream"
+     gets included -- and the file the two importers were built against does it
+     on nine streams, among them the contents of both of its scanned pages.
+
+     It matters because the two decompressors disagree about it. node's zlib
+     ignores a tail it did not expect, so every check in tools/ is green; the
+     browser's DecompressionStream follows the Compression Streams spec, which
+     says trailing junk is an error, and throws. The whole page therefore came
+     back empty in a browser and nowhere else, which is as bad a place for a bug
+     to live as there is.
+
+     So: unpack as the file says, and if that is refused and the only thing past
+     the end is whitespace, unpack again without it. Anything else still fails,
+     because anything else means the length was wrong about something that
+     matters. */
+  function browserInflate(bytes){
+    if(!global.DecompressionStream){
+      throw fail("import.err.pdfInflate", "this browser cannot unpack a compressed PDF");
+    }
+    return inflateExactly(bytes).catch(function(err){
+      var end = bytes.length;
+      while(end > 0 && BLANK.indexOf(bytes[end - 1]) >= 0){ end--; }
+      if(end === bytes.length || end === 0){ throw err; }
+      return inflateExactly(bytes.subarray(0, end));
     });
   }
 
@@ -1074,6 +1102,10 @@
     convert: convert,
     /* the checks drive these directly: node has bytes and zlib, not a File */
     bytes: readBytes,
+    /* node's DecompressionStream follows the same spec the browser's does, so
+       handing this out lets a check exercise the strict decoder rather than the
+       forgiving one the rest of tools/ runs on */
+    _inflate: browserInflate,
     _staves: staves,
     _heads: heads
   };
