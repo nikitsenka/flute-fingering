@@ -17,7 +17,11 @@ The files exist to separate failures. sample-plain.pdf has no compression, so
  * sample-stamped.pdf is a scan with a watermark over it, which must not be
  * promoted to an engraving by counting marks first; sample-locked.pdf is
  * encrypted, and has to be refused as protected rather than fall over later on
- * bytes that are not deflate.
+ * bytes that are not deflate. sample-owner.pdf and sample-aes256.pdf are the
+ * engraved page locked the way a publisher locks a download -- an owner
+ * password, an empty user one -- under the oldest standard handler and under
+ * AES-256, which derives its key the other way round entirely and is what
+ * anything exported this decade uses.
  *
  * What this does NOT check: anything about a real engraver's output. These
  * pages are the shape of an engraving, not one -- no music font, no subset
@@ -70,15 +74,22 @@ function near(a, b, tol){ return Math.abs(a - b) <= tol; }
 
 /* The samples are generated, not committed -- one command, no dependencies. */
 function samples(){
-  if(!fs.existsSync(path.join(SAMPLES, "sample-stamped.pdf"))){
+  var want = ["sample-plain.pdf", "sample-engraved.pdf", "sample-ascii85.pdf",
+              "sample-scan.pdf", "sample-stamped.pdf",
+              /* encrypted with an owner password and an empty user one, which is
+                 how a publisher locks a download: it has to read like the page it
+                 is, not be turned away as protected */
+              "sample-owner.pdf",
+              /* the same page under AES-256, which is what a file made this
+                 decade uses and what this reader used to stop at */
+              "sample-aes256.pdf"];
+  /* Every file is tested for, not just the directory: a checkout that ran this
+     before a sample was added already has the directory, and would then fail on
+     a missing file instead of writing it. */
+  if(want.some(function(n){ return !fs.existsSync(path.join(SAMPLES, n)); })){
     child.execFileSync("python3", [path.join(__dirname, "make_test_pdf.py")], {stdio:"ignore"});
   }
-  return ["sample-plain.pdf", "sample-engraved.pdf", "sample-ascii85.pdf",
-          "sample-scan.pdf", "sample-stamped.pdf",
-          /* encrypted with an owner password and an empty user one, which is
-             how a publisher locks a download: it has to read like the page it
-             is, not be turned away as protected */
-          "sample-owner.pdf"];
+  return want;
 }
 
 /* What make_test_pdf.py drew. Kept here as literals on purpose: reading them
@@ -318,10 +329,11 @@ chain.then(checkLocked).then(checkFax).then(checkRubbish).then(function(){
     problems.forEach(function(p){ console.log("  " + p); });
     process.exit(1);
   }
-  console.log("pdfread: ok -- 6 samples: marks where they were drawn, scans and "
+  console.log("pdfread: ok -- 7 samples: marks where they were drawn, scans and "
             + "watermarked scans read as scans,\n"
-            + "         a file locked against printing opened and one locked against "
-            + "reading refused,\n"
+            + "         files locked against printing opened under RC4 and under "
+            + "AES-256, one locked\n"
+            + "         against reading refused,\n"
             + "         a file that is not a PDF said to be one rather than an empty "
             + "page, and\n"
             + "         a page of fax coding decoded back to the bar it was drawn from");

@@ -792,11 +792,21 @@
      file was made with.
 
      MD5 and RC4 are written out here because nothing else in the browser has
-     them; AES comes from WebCrypto, which is why the whole path is promised.
-     Only streams are decrypted. Strings inside dictionaries are encrypted too,
-     but nothing in this reader reads one -- a title or an author, not a note.
+     them; AES and the SHA family come from WebCrypto, which is why the whole
+     path is promised. Only streams are decrypted. Strings inside dictionaries
+     are encrypted too, but nothing in this reader reads one -- a title or an
+     author, not a note.
 
-     PDF 32000-1, 7.6.3: algorithm 2 builds the key, algorithm 6 checks it. */
+     Two generations of the handler, and they derive the key in opposite
+     directions. Up to /V 4 the key is computed from the password, the /O entry,
+     the permissions and the /ID, and /U is a check value that says whether the
+     password was right: PDF 32000-1, 7.6.3, algorithm 2 builds it and algorithm
+     6 checks it. From /V 5 -- AES-256, which is what anything exported in the
+     last decade uses -- the key is random, stored in the file wrapped under a
+     key derived from the password, and /U carries the salts to derive it: ISO
+     32000-2, 7.6.4.3, algorithms 2.A and 2.B. The second was the gap that made
+     an ordinary publisher's download read as something this reader had never
+     heard of. */
   var PAD = [0x28,0xBF,0x4E,0x5E,0x4E,0x75,0x8A,0x41,0x64,0x00,0x4E,0x56,
              0xFF,0xFA,0x01,0x08,0x2E,0x2E,0x00,0xB6,0xD0,0x68,0x3E,0x80,
              0x2F,0x0C,0xA9,0xFE,0x64,0x53,0x69,0x7A];
@@ -953,10 +963,122 @@
     var filters = doc.get(enc, "CF");
     var cf = isDict(filters) ? doc.get(filters, name) : null;
     var cfm = cf ? nameOf(doc.get(cf, "CFM")) : null;
-    if(cfm === "AESV2"){ return "aes"; }
+    if(cfm === "AESV2" || cfm === "AESV3"){ return "aes"; }
     if(cfm === "V2" || cfm === "RC4"){ return "rc4"; }
     if(cfm === "None"){ return "none"; }
-    return null;                       /* AESV3 and anything newer: not read */
+    return null;                       /* anything newer than AES-256: not read */
+  }
+
+  /* ---------- the AES-256 handler, /V 5 ----------
+     WebCrypto offers AES-CBC and only with PKCS#7 padding, and both of the
+     places the key wrapping needs it have no padding at all. Both directions
+     can be had anyway, which is cheaper than writing a third cipher out by
+     hand.
+
+     Encrypting is easy: whole blocks in means the one block WebCrypto adds is
+     pure padding, so it comes straight back off the end. */
+  function aesCbc(key, iv, data, how){
+    var subtle = subtleCrypto();
+    return subtle.importKey("raw", key, {name:"AES-CBC"}, false, [how]).then(function(k){
+      return subtle[how]({name:"AES-CBC", iv:iv}, k, data);
+    }).then(function(buf){ return new Uint8Array(buf); });
+  }
+
+  function aesEncryptNoPad(key, iv, data){
+    return aesCbc(key, iv, data, "encrypt").then(function(out){
+      return out.subarray(0, out.length - 16);
+    });
+  }
+
+  /* Decrypting is the awkward one: WebCrypto refuses a last block that does not
+     end in valid padding, and an unpadded ciphertext never does. One forged
+     block on the end fixes it. Appending C' = E(Clast XOR 0x10*16) makes the
+     final block decrypt to D(C') XOR Clast, which is a full block of padding --
+     so it satisfies the check and is then stripped as the padding it claims to
+     be, leaving exactly the message. E() of a single block is one CBC
+     encryption under a zero IV. */
+  function aesDecryptNoPad(key, iv, data){
+    var zero = new Uint8Array(16);
+    var tail = new Uint8Array(16);
+    for(var i = 0; i < 16; i++){ tail[i] = data[data.length - 16 + i] ^ 0x10; }
+    return aesCbc(key, zero, tail, "encrypt").then(function(out){
+      return aesCbc(key, iv, joinBytes([data, out.subarray(0, 16)]), "decrypt");
+    });
+  }
+
+  function sha(bits, bytes){
+    return subtleCrypto().digest("SHA-" + bits, bytes).then(function(buf){
+      return new Uint8Array(buf);
+    });
+  }
+
+  /* Algorithm 2.B. /R 5 was Adobe's first version of this and is one SHA-256;
+     /R 6 is the standard's, and grinds through at least 64 rounds of hashing
+     and encrypting, the data itself choosing which hash each round and when to
+     stop. The cost is the point -- it is there to make guessing passwords
+     slow -- and at an empty password it is a few milliseconds once per file. */
+  function hash2B(R, password, salt, udata){
+    return sha(256, joinBytes([password, salt, udata])).then(function(K){
+      if(R < 6){ return K; }
+      var round = 0, E = null;
+      function step(){
+        var one = joinBytes([password, K, udata]);
+        var K1 = new Uint8Array(one.length * 64);
+        for(var i = 0; i < 64; i++){ K1.set(one, i * one.length); }
+        /* 64 copies of anything is a whole number of blocks, whatever the
+           password's length, so the no-padding encryption above applies */
+        return aesEncryptNoPad(K.subarray(0, 16), K.subarray(16, 32), K1).then(function(e){
+          E = e;
+          var sum = 0;
+          for(var j = 0; j < 16; j++){ sum += E[j]; }
+          return sha([256, 384, 512][sum % 3], E);
+        }).then(function(k){
+          K = k;
+          round++;
+          /* the last byte of E says whether to go round again, but never
+             before 64 rounds have run */
+          if(round < 64 || E[E.length - 1] > round - 32){ return step(); }
+          return K.subarray(0, 32);
+        });
+      }
+      return step();
+    });
+  }
+
+  /* Algorithm 2.A, for the empty user password only -- the owner's password is
+     what the restrictions hang off, and this reader restricts nothing.
+
+     /U is 48 bytes: a 32-byte check value and two 8-byte salts. The first salt
+     says whether the password opens the file; the second derives the key that
+     /UE is wrapped under, and inside /UE is the key the streams are actually
+     encrypted with. */
+  function setupCryptV5(enc, doc){
+    var R = num(doc.get(enc, "R")) || 5;
+    if(R !== 5 && R !== 6){
+      return Promise.resolve({locked:true, why:"this PDF uses an encryption this reader does not know"});
+    }
+    var cipher = streamCipher(enc, doc);
+    if(!cipher){
+      return Promise.resolve({locked:true, why:"this PDF uses an encryption this reader does not know"});
+    }
+    if(!subtleCrypto()){
+      return Promise.resolve({locked:true,
+                              why:"this PDF is AES-encrypted and there is no crypto here to open it"});
+    }
+    var U = bytesOfString(textOf(doc.get(enc, "U")));
+    var UE = bytesOfString(textOf(doc.get(enc, "UE")));
+    if(U.length < 48 || UE.length < 32){
+      return Promise.resolve({locked:true, why:"this PDF's encryption dictionary is incomplete"});
+    }
+    var empty = new Uint8Array(0);
+    return hash2B(R, empty, U.subarray(32, 40), empty).then(function(check){
+      if(!same(check, U, 32)){ return {locked:true, why:"this PDF needs a password to open"}; }
+      return hash2B(R, empty, U.subarray(40, 48), empty).then(function(wrapping){
+        return aesDecryptNoPad(wrapping, new Uint8Array(16), UE.subarray(0, 32));
+      }).then(function(key){
+        return {key:key, cipher:cipher, aes:true, v5:true};
+      });
+    });
   }
 
   function setupCrypt(doc){
@@ -970,31 +1092,40 @@
         if(isDict(o) && nameOf(doc.get(o, "Filter")) === "Standard" && o.O !== undefined){ enc = o; }
       }
     }
-    if(!isDict(enc)){ return null; }
+    if(!isDict(enc)){ return Promise.resolve(null); }
 
     var V = num(doc.get(enc, "V")) || 0;
-    if(V > 4){ return {locked:true, why:"this PDF uses an encryption this reader does not know"}; }
+    if(V === 5){ return setupCryptV5(enc, doc); }
+    if(V > 5){
+      return Promise.resolve({locked:true, why:"this PDF uses an encryption this reader does not know"});
+    }
 
     var cipher = streamCipher(enc, doc);
-    if(!cipher){ return {locked:true, why:"this PDF uses an encryption this reader does not know"}; }
+    if(!cipher){
+      return Promise.resolve({locked:true, why:"this PDF uses an encryption this reader does not know"});
+    }
     /* AES comes from WebCrypto, which a page has and a bare script may not --
        better to say so here than to hand back a document whose every stream
        fails to decrypt and whose every page then looks empty */
     if(cipher === "aes" && !subtleCrypto()){
-      return {locked:true, why:"this PDF is AES-encrypted and there is no crypto here to open it"};
+      return Promise.resolve({locked:true,
+                              why:"this PDF is AES-encrypted and there is no crypto here to open it"});
     }
 
     var key = fileKey(enc, doc);
     if(!emptyPasswordWorks(enc, doc, key)){
-      return {locked:true, why:"this PDF needs a password to open"};
+      return Promise.resolve({locked:true, why:"this PDF needs a password to open"});
     }
-    return {key:key, cipher:cipher, aes:cipher === "aes"};
+    return Promise.resolve({key:key, cipher:cipher, aes:cipher === "aes"});
   }
 
   /* Per object, per PDF 32000-1 algorithm 1: the file key, the object number
      and generation, and for AES four bytes that say so. */
   function objectKey(crypt, num, gen){
     if(crypt.cipher === "none"){ return null; }
+    /* Not in /V 5: there the key is 256 bits of randomness already, and mixing
+       the object number into it was dropped along with the MD5 that did it. */
+    if(crypt.v5){ return crypt.key; }
     var extra = crypt.aes ? [0x73, 0x41, 0x6C, 0x54] : [];
     var parts = [crypt.key, new Uint8Array([num & 0xFF, (num >> 8) & 0xFF, (num >> 16) & 0xFF,
                                             gen & 0xFF, (gen >> 8) & 0xFF].concat(extra))];
@@ -1055,15 +1186,18 @@
     if(!Object.keys(doc.at).length){
       return Promise.reject(fail("no objects in the file", "import.err.pdfEmpty"));
     }
-    if(encrypted(doc)){
-      var crypt = setupCrypt(doc);
+    /* Deriving an AES-256 key is tens of thousands of hashes, so this step is
+       promised now and the rest of the reader waits for it: nothing can be
+       inflated before the handler is known. */
+    var ready = encrypted(doc) ? setupCrypt(doc).then(function(crypt){
       if(!crypt || crypt.locked){
-        return Promise.reject(fail((crypt && crypt.why) || "the file is protected",
-                                   "import.err.pdfLocked"));
+        throw fail((crypt && crypt.why) || "the file is protected", "import.err.pdfLocked");
       }
       doc.crypt = crypt;
-    }
-    return expandObjectStreams(doc).then(function(){
+    }) : Promise.resolve();
+    return ready.then(function(){
+      return expandObjectStreams(doc);
+    }).then(function(){
       doc.pages = collectPages(doc);
       if(!doc.pages.length){
         return Promise.reject(fail("no pages in the file", "import.err.pdfEmpty"));

@@ -21,6 +21,10 @@ Six files, because the reader has to tell them apart:
                           still be called a scan and not an engraving
     sample-locked.pdf     /Encrypt, so the reader has to say "protected" instead
                           of tripping over bytes that are not deflate
+    sample-aes256.pdf     the owner-locked page again under AES-256 (/V 5 /R 6),
+                          which is what anything exported this decade uses --
+                          a different key derivation entirely, and the one a
+                          reader is likeliest to stop at
 
 Written by hand rather than with a library, for the same reason the app unpacks
 a .mxl by hand: this repository vendors what it needs and installs nothing.
@@ -422,6 +426,219 @@ def owner_locked():
     return bytes(out)
 
 
+# ---------- AES, written out because the standard library has none ----------
+# Encryption only: every use here encrypts, and leaving the inverse cipher out
+# halves the code. The S-box is derived rather than transcribed -- 256 constants
+# typed by hand is 256 chances to make a typo that only shows as a wrong file --
+# and FIPS-197's own test vectors are checked below, so a mistake here fails at
+# build time instead of becoming a sample the reader is then "wrong" about.
+
+def _gmul(a, b):
+    """Multiply in GF(2**8), the field AES is defined over."""
+    out = 0
+    for _ in range(8):
+        if b & 1:
+            out ^= a
+        high = a & 0x80
+        a = (a << 1) & 0xFF
+        if high:
+            a ^= 0x1B
+        b >>= 1
+    return out
+
+
+def _make_sbox():
+    inverse = [0] * 256
+    for a in range(1, 256):
+        for b in range(1, 256):
+            if _gmul(a, b) == 1:
+                inverse[a] = b
+                break
+    box = []
+    for a in range(256):
+        x = inverse[a]
+        y = x
+        for shift in (1, 2, 3, 4):
+            y ^= ((x << shift) | (x >> (8 - shift))) & 0xFF
+        box.append(y ^ 0x63)
+    return box
+
+
+SBOX = _make_sbox()
+
+
+def _expand_key(key):
+    nk = len(key) // 4
+    rounds = nk + 6
+    words = [list(key[4 * i:4 * i + 4]) for i in range(nk)]
+    rcon = 1
+    for i in range(nk, 4 * (rounds + 1)):
+        word = list(words[i - 1])
+        if i % nk == 0:
+            word = [SBOX[b] for b in word[1:] + word[:1]]
+            word[0] ^= rcon
+            rcon = _gmul(rcon, 2)
+        elif nk > 6 and i % nk == 4:
+            word = [SBOX[b] for b in word]
+        words.append([words[i - nk][j] ^ word[j] for j in range(4)])
+    return words, rounds
+
+
+def _encrypt_block(words, rounds, block):
+    """One block. The state is column-major: byte r + 4c is row r, column c."""
+    state = list(block)
+
+    def add_round_key(rnd):
+        for col in range(4):
+            for row in range(4):
+                state[4 * col + row] ^= words[rnd * 4 + col][row]
+
+    add_round_key(0)
+    for rnd in range(1, rounds + 1):
+        state = [SBOX[b] for b in state]
+        state = [state[((col + row) % 4) * 4 + row] for col in range(4) for row in range(4)]
+        if rnd != rounds:
+            mixed = []
+            for col in range(4):
+                a = state[4 * col:4 * col + 4]
+                for row in range(4):
+                    mixed.append(_gmul(a[row], 2) ^ _gmul(a[(row + 1) % 4], 3)
+                                 ^ a[(row + 2) % 4] ^ a[(row + 3) % 4])
+            state = mixed
+        add_round_key(rnd)
+    return bytes(state)
+
+
+def aes_cbc(key, iv, data):
+    """CBC, no padding of its own: the caller passes whole blocks."""
+    words, rounds = _expand_key(key)
+    out = bytearray()
+    previous = iv
+    for at in range(0, len(data), 16):
+        block = bytes(x ^ y for x, y in zip(data[at:at + 16], previous))
+        previous = _encrypt_block(words, rounds, block)
+        out += previous
+    return bytes(out)
+
+
+def _check_aes():
+    """FIPS-197 C.1 and C.3, so a broken cipher never reaches a sample."""
+    zero = b"\x00" * 16
+    plain = bytes.fromhex("00112233445566778899aabbccddeeff")
+    got = aes_cbc(bytes(range(16)), zero, plain)
+    assert got.hex() == "69c4e0d86a7b0430d8cdb78070b4c55a", got.hex()
+    got = aes_cbc(bytes(range(32)), zero, plain)
+    assert got.hex() == "8ea2b7ca516745bfeafc49904b496089", got.hex()
+
+
+_check_aes()
+
+
+def hash_2b(password, salt, udata):
+    """ISO 32000-2 algorithm 2.B -- the /R 6 password hash.
+
+    At least 64 rounds of hashing and encrypting, with the data itself choosing
+    which hash each round and when to stop. It is slow on purpose; the point is
+    that guessing passwords should cost something.
+    """
+    import hashlib
+
+    k = hashlib.sha256(password + salt + udata).digest()
+    rounds = 0
+    while True:
+        one = password + k + udata
+        e = aes_cbc(k[:16], k[16:32], one * 64)
+        k = [hashlib.sha256, hashlib.sha384, hashlib.sha512][sum(e[:16]) % 3](e).digest()
+        rounds += 1
+        if rounds >= 64 and e[-1] <= rounds - 32:
+            return k[:32]
+
+
+def aes256_locked():
+    """The engraved page under AES-256, locked the way a publisher locks a
+    download: an owner password, an empty user password.
+
+    /V 5 turns the key derivation inside out. Up to /V 4 the key is computed
+    from the password; here it is 32 random bytes stored in the file, wrapped
+    under a key the password derives, and /U carries the salts that derive it.
+    That is a whole separate path through the reader, and the one a file made in
+    the last ten years takes -- which is how a file that every viewer opens came
+    to be refused as "an encryption this reader does not know".
+    """
+    import hashlib
+
+    doc_id = bytes(range(16))
+    P = -1052                               # printing allowed, copying not
+    p_le = (P & 0xFFFFFFFF).to_bytes(4, "little")
+
+    # Fixed rather than random: a sample has to be the same file every time it
+    # is written, or a failure cannot be looked at twice.
+    file_key = bytes((i * 7 + 3) & 0xFF for i in range(32))
+    user_salts = bytes.fromhex("0001020304050607") + bytes.fromhex("08090a0b0c0d0e0f")
+    owner_salts = bytes.fromhex("1011121314151617") + bytes.fromhex("18191a1b1c1d1e1f")
+    owner_password = b"owner"
+
+    U = hash_2b(b"", user_salts[:8], b"") + user_salts
+    UE = aes_cbc(hash_2b(b"", user_salts[8:], b""), b"\x00" * 16, file_key)
+    O = hash_2b(owner_password, owner_salts[:8], U) + owner_salts
+    OE = aes_cbc(hash_2b(owner_password, owner_salts[8:], U), b"\x00" * 16, file_key)
+
+    # /Perms is the permissions again, encrypted under the file key, so a reader
+    # cannot quietly rewrite /P. ECB of one block, which is CBC with a zero IV.
+    perms = aes_cbc(file_key, b"\x00" * 16, p_le + b"\xff\xff\xff\xff" + b"Tadb" + b"\x00\x00\x00\x00")
+
+    def encrypt_stream(data):
+        """AES-CBC, the IV written in front, PKCS#7 padded -- 7.6.2 of the spec.
+        In /V 5 the object number is not mixed in: the file key is used as it
+        stands."""
+        iv = bytes((i * 11 + 5) & 0xFF for i in range(16))
+        pad = 16 - (len(data) % 16)
+        return iv + aes_cbc(file_key, iv, data + bytes([pad]) * pad)
+
+    content = encrypt_stream(zlib.compress(page_content(), 6))
+
+    objects = {
+        1: b"<< /Type /Catalog /Pages 2 0 R >>",
+        2: b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        3: ("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %d %d] "
+            "/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>"
+            % (W, H)).encode("latin-1"),
+        4: ("<< /Filter /FlateDecode /Length %d >>\nstream\n" % len(content)).encode("latin-1")
+           + content + b"\nendstream",
+        5: b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        # Hex strings, not literal ones: these are 48 bytes of hash apiece and a
+        # literal string would need every parenthesis and backslash in them
+        # escaped, which is a second thing to get wrong in a file whose job is
+        # to be right.
+        6: (b"<< /Filter /Standard /V 5 /R 6 /Length 256 /P " + str(P).encode("latin-1")
+            + b" /CF << /StdCF << /CFM /AESV3 /AuthEvent /DocOpen /Length 32 >> >>"
+            + b" /StmF /StdCF /StrF /StdCF /EncryptMetadata true"
+            + b" /O <" + O.hex().encode("latin-1") + b">"
+            + b" /U <" + U.hex().encode("latin-1") + b">"
+            + b" /OE <" + OE.hex().encode("latin-1") + b">"
+            + b" /UE <" + UE.hex().encode("latin-1") + b">"
+            + b" /Perms <" + perms.hex().encode("latin-1") + b"> >>"),
+    }
+
+    out = bytearray(b"%PDF-1.7\n%\xe2\xe3\xcf\xd3\n")
+    offsets = {}
+    for num in sorted(objects):
+        offsets[num] = len(out)
+        out += ("%d 0 obj\n" % num).encode("latin-1")
+        out += objects[num]
+        out += b"\nendobj\n"
+
+    start = len(out)
+    top = max(objects) + 1
+    out += ("xref\n0 %d\n" % top).encode("latin-1")
+    out += b"0000000000 65535 f \n"
+    for num in range(1, top):
+        out += ("%010d 00000 n \n" % offsets.get(num, 0)).encode("latin-1")
+    out += ("trailer\n<< /Size %d /Root 1 0 R /Encrypt 6 0 R /ID [<%s> <%s>] >>\n"
+            "startxref\n%d\n%%%%EOF\n"
+            % (top, doc_id.hex(), doc_id.hex(), start)).encode("latin-1")
+    return bytes(out)
+
 def main():
     outdir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "samples")
     os.makedirs(outdir, exist_ok=True)
@@ -434,6 +651,7 @@ def main():
         "sample-owner.pdf": owner_locked(),
         "sample-stamped.pdf": stamped(),
         "sample-locked.pdf": locked(),
+        "sample-aes256.pdf": aes256_locked(),
     }
     for name, data in files.items():
         path = os.path.join(outdir, name)

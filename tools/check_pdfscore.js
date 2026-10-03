@@ -62,7 +62,11 @@ function inflate(bytes){
 
 /* generated, not committed -- one command, no dependencies */
 function samples(){
-  if(!fs.existsSync(path.join(SAMPLES, "sample-engraved.pdf"))){
+  /* Every file this check wants is tested for, not just the directory: a
+     checkout that ran this before a sample was added already has the directory,
+     and would then fail on a missing file instead of writing it. */
+  var need = ENGRAVED.concat(["sample-scan.pdf", "sample-locked.pdf"]);
+  if(need.some(function(n){ return !fs.existsSync(path.join(SAMPLES, n)); })){
     child.execFileSync("python3", [path.join(__dirname, "make_test_pdf.py")], {stdio:"ignore"});
   }
   return fs.readdirSync(SAMPLES).filter(function(n){ return /\.pdf$/.test(n); });
@@ -86,8 +90,9 @@ var ENGRAVED = ["sample-engraved.pdf", "sample-plain.pdf", "sample-ascii85.pdf",
                    which is how a real engraver draws them */
                 "sample-stroked.pdf",
                 /* and the same page locked the way a publisher locks a
-                   download: an owner password, an empty user one */
-                "sample-owner.pdf"];
+                   download: an owner password, an empty user one -- under RC4,
+                   and under the AES-256 a file exported this decade uses */
+                "sample-owner.pdf", "sample-aes256.pdf"];
 
 function readsAsScale(name){
   return PdfScore.bytes(bytesOf(name), inflate).then(function(doc){
@@ -257,9 +262,10 @@ run.then(function(){
     process.exit(1);
   }
   console.log("pdfscore: ok -- the drawn scale reads back as a scale, three staves,\n" +
-              "          in every compression the samples use and with the staff lines\n" +
-              "          stroked as well as filled; a scan and a protected file are\n" +
-              "          refused rather than guessed at");
+              "          in every compression the samples use, with the staff lines\n" +
+              "          stroked as well as filled, and under RC4 as well as\n" +
+              "          AES-256; a scan and a protected file are refused rather\n" +
+              "          than guessed at");
 }).catch(function(err){
   console.error(String(err && err.stack || err));
   process.exit(1);
